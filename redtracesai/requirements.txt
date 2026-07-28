@@ -1,0 +1,11 @@
+asyncpg>=0.29,<1
+fastapi>=0.115,<1
+praw>=7.8,<8
+PySocks>=1.7,<2
+python-dotenv>=1.0,<2
+requests[socks]>=2.32,<3
+SQLAlchemy[asyncio]>=2.0,<3
+stem>=1.8,<2
+structlog>=24.4,<26
+telethon>=1.38,<2
+uvicorn[standard]>=0.30,<1

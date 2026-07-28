@@ -1,0 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background: #e9ecea;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(22, 116, 73, 0.45);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(22, 116, 73, 0.16);
+  color: #10231a;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #d7ded9;
+}
+
+@layer components {
+  .nav-item {
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[11px] font-medium text-[#829087] transition hover:bg-[#f1f4f2] hover:text-[#294137];
+  }
+
+  .nav-item-active {
+    @apply relative bg-[#edf6f1] font-semibold text-[#167449];
+  }
+
+  .nav-item-active::before {
+    content: "";
+    @apply absolute -left-4 h-7 w-1 rounded-r-full bg-[#167449];
+  }
+
+  .channel-button {
+    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[9px] text-[#87948c] transition hover:bg-[#f1f4f2] hover:text-[#3d5146];
+  }
+
+  .channel-button span:last-child {
+    @apply font-mono text-[8px];
+  }
+
+  .channel-active {
+    @apply bg-[#edf6f1] font-semibold text-[#167449];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
