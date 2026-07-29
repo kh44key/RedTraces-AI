@@ -17,6 +17,7 @@ from common.db import AsyncSessionFactory, engine, init_db
 from common.cti import cti_keywords, env_flag, matches_cti_keywords
 from common.ioc import enrich_metadata
 from common.models import CollectedMessage
+from common.noise import evaluate_message
 
 LOGGER = logging.getLogger(__name__)
 REDDIT_URL = "https://www.reddit.com"
@@ -144,9 +145,30 @@ async def insert_new_items(
     if not fresh_items:
         return
 
-    enriched_metadata = [
-        enrich_metadata(item.metadata, item.raw_text) for item in fresh_items
-    ]
+    accepted_items: list[RedditItem] = []
+    enriched_metadata: list[dict[str, Any]] = []
+    for item in fresh_items:
+        noise = await evaluate_message("reddit", item.source, item.raw_text)
+        if not noise.accepted:
+            LOGGER.info(
+                "Filtered Reddit item reddit_id=%s subreddit=%s reason=%s language=%s",
+                item.reddit_id,
+                item.source,
+                noise.reason,
+                noise.language,
+            )
+            seen_reddit_ids.add(item.reddit_id)
+            continue
+        accepted_items.append(item)
+        enriched_metadata.append(
+            enrich_metadata(
+                {**item.metadata, "noise": noise.metadata()},
+                item.raw_text,
+            )
+        )
+    if not accepted_items:
+        return
+
     async with AsyncSessionFactory() as session:
         session.add_all(
             [
@@ -160,13 +182,13 @@ async def insert_new_items(
                     metadata_=metadata,
                     attachments=[],
                 )
-                for item, metadata in zip(fresh_items, enriched_metadata)
+                for item, metadata in zip(accepted_items, enriched_metadata)
             ]
         )
         await session.commit()
 
-    seen_reddit_ids.update(batch_ids)
-    for item, metadata in zip(fresh_items, enriched_metadata):
+    seen_reddit_ids.update(item.reddit_id for item in accepted_items)
+    for item, metadata in zip(accepted_items, enriched_metadata):
         LOGGER.info(
             "Inserted Reddit item reddit_id=%s subreddit=%s url=%s fetched_iocs=%d",
             item.reddit_id,

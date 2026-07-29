@@ -1,6 +1,11 @@
 export type DemoMessage = {
   id: string;
-  platform: "telegram";
+  platform:
+    | "telegram"
+    | "reddit"
+    | "discord"
+    | "darkweb"
+    | "autodiscovery";
   source: string;
   raw_text: string;
   author: string | null;
@@ -15,6 +20,218 @@ const minutesAgo = (minutes: number) =>
   new Date(Date.now() - minutes * 60_000).toISOString();
 
 export const DEMO_MESSAGES: DemoMessage[] = [
+  {
+    id: "demo-discord-941832",
+    platform: "discord",
+    source: "soc-operations",
+    raw_text:
+      "Triage update: repeated beaconing was observed from a lab endpoint to 203.0.113.77 over HTTPS. The downloaded payload matched SHA-256 8f27d01a1d3b9c6e787462295a51bd86e5afc560d7cc8c871d6ab3f0129e45ab. Host isolated; sample queued for reverse engineering.",
+    author: "mira.blue",
+    url: null,
+    collected_at: minutesAgo(1),
+    posted_at: minutesAgo(2),
+    metadata: {
+      message_id: "1287441902837194832",
+      channel_id: "1198873451100284928",
+      guild_id: "1184472103991201792",
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "ed42fa9387ce455f049262724f2eff693a33925dd1cd318a9460de1d907682cc",
+      },
+      ioc_count: 2,
+      iocs: {
+        sha256: [
+          "8f27d01a1d3b9c6e787462295a51bd86e5afc560d7cc8c871d6ab3f0129e45ab",
+        ],
+        sha1: [],
+        md5: [],
+        urls: [],
+        ipv4: ["203.0.113.77"],
+        ipv6: [],
+        domains: [],
+      },
+    },
+    attachments: [
+      {
+        filename: "memory-triage.txt",
+        type: "text/plain",
+        sha256:
+          "512789a6c9e3da78c22ad3b1d15da9d4567239b68e79bc3b238644c959aa5f41",
+      },
+    ],
+  },
+  {
+    id: "demo-reddit-t3-1f8cti",
+    platform: "reddit",
+    source: "netsec",
+    raw_text:
+      "Incident responders are tracking a credential-phishing chain using hxxps://secure-docs[.]example/auth. The page fingerprints mobile visitors and forwards captured sessions to 198.51.100.64. Indicators are sanitized and reserved for this demo.",
+    author: "packet_nomad",
+    url: "https://www.reddit.com/r/netsec/comments/1f8cti/demo_incident_thread/",
+    collected_at: minutesAgo(3),
+    posted_at: minutesAgo(4),
+    metadata: {
+      reddit_id: "1f8cti",
+      score: 184,
+      num_comments: 37,
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "eeea3a36b131921a3642956369ebd72e85b334b9c12a82d119381fb401b361a1",
+      },
+      ioc_count: 3,
+      iocs: {
+        sha256: [],
+        sha1: [],
+        md5: [],
+        urls: ["https://secure-docs.example/auth"],
+        ipv4: ["198.51.100.64"],
+        ipv6: [],
+        domains: ["secure-docs.example"],
+      },
+    },
+    attachments: [],
+  },
+  {
+    id: "demo-telegram-120491",
+    platform: "telegram",
+    source: "falconfeedsio",
+    raw_text:
+      "Threat bulletin: a loader campaign is rotating C2 infrastructure through sync-cache[.]example and the TEST-NET host 192.0.2.146. Analysts associate the activity with malicious archive attachments delivered through invoice-themed lures.",
+    author: "falconfeeds_bot",
+    url: "https://t.me/falconfeedsio/120491",
+    collected_at: minutesAgo(5),
+    posted_at: minutesAgo(6),
+    metadata: {
+      message_id: 120491,
+      views: 6241,
+      forwards: 208,
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "2775f2a7a15834fced8223978d95a272ac7c7991c43cd4f38d45c0cac9af3bae",
+      },
+      ioc_count: 2,
+      iocs: {
+        sha256: [],
+        sha1: [],
+        md5: [],
+        urls: [],
+        ipv4: ["192.0.2.146"],
+        ipv6: [],
+        domains: ["sync-cache.example"],
+      },
+    },
+    attachments: [],
+  },
+  {
+    id: "demo-discord-941711",
+    platform: "discord",
+    source: "malware-research",
+    raw_text:
+      "Sandbox notes for the new infostealer build: persistence through a Run key, browser database discovery, and exfiltration to api-gateway[.]example/v2/upload. MD5 44d88612fea8a8f36de82e1278abb02f retained as a synthetic training indicator.",
+    author: "reverse_ops",
+    url: null,
+    collected_at: minutesAgo(8),
+    posted_at: minutesAgo(9),
+    metadata: {
+      message_id: "1287440184902277111",
+      channel_id: "1198873462236160051",
+      guild_id: "1184472103991201792",
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "5f665d546107722c3e1eaec4a67ace719df3a7817457f568cafcf2d7a54a119c",
+      },
+      ioc_count: 2,
+      iocs: {
+        sha256: [],
+        sha1: [],
+        md5: ["44d88612fea8a8f36de82e1278abb02f"],
+        urls: [],
+        ipv4: [],
+        ipv6: [],
+        domains: ["api-gateway.example"],
+      },
+    },
+    attachments: [],
+  },
+  {
+    id: "demo-reddit-comment-j4cti9",
+    platform: "reddit",
+    source: "cybersecurity",
+    raw_text:
+      "We found the same fake update page during internal hunting. DNS history points to cdn-browser-update[.]example, while callbacks resolve to 203.0.113.118. No production systems were affected.",
+    author: "ir_fieldnotes",
+    url: "https://www.reddit.com/r/cybersecurity/comments/1f8cti/comment/j4cti9/",
+    collected_at: minutesAgo(12),
+    posted_at: minutesAgo(13),
+    metadata: {
+      reddit_id: "j4cti9",
+      score: 69,
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "3d86dfe90da98888fd829cff24276937382a4ed52a5ed9ff433464fa40d333d4",
+      },
+      ioc_count: 2,
+      iocs: {
+        sha256: [],
+        sha1: [],
+        md5: [],
+        urls: [],
+        ipv4: ["203.0.113.118"],
+        ipv6: [],
+        domains: ["cdn-browser-update.example"],
+      },
+    },
+    attachments: [],
+  },
+  {
+    id: "demo-discord-940882",
+    platform: "discord",
+    source: "threat-hunting",
+    raw_text:
+      "Hunt query matched PowerShell spawning from a document reader on three test hosts. The command retrieved hxxps://telemetry-check[.]example/bootstrap.ps1. Blocking and retrospective search are in progress.",
+    author: "hunter.07",
+    url: null,
+    collected_at: minutesAgo(16),
+    posted_at: minutesAgo(17),
+    metadata: {
+      message_id: "1287431004412217392",
+      channel_id: "1198873496721621054",
+      guild_id: "1184472103991201792",
+      noise: {
+        accepted: true,
+        reason: null,
+        language: "en",
+        normalized_sha256:
+          "2d0b6ec312a08772447246d41441fd48fcbd4f39675bf61cc5eeb3dbbcfe6b34",
+      },
+      ioc_count: 2,
+      iocs: {
+        sha256: [],
+        sha1: [],
+        md5: [],
+        urls: ["https://telemetry-check.example/bootstrap.ps1"],
+        ipv4: [],
+        ipv6: [],
+        domains: ["telemetry-check.example"],
+      },
+    },
+    attachments: [],
+  },
   {
     id: "demo-10482",
     platform: "telegram",
@@ -166,7 +383,7 @@ export const DEMO_MESSAGES: DemoMessage[] = [
 ];
 
 export const DEMO_STATS = {
-  total: 2847,
-  last_hour: 7,
-  unique_channels: 6,
+  total: 3184,
+  last_hour: 13,
+  unique_channels: 12,
 };

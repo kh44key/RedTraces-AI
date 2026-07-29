@@ -23,6 +23,7 @@ from common.cti import cti_keywords, env_flag, matches_cti_keywords
 from common.db import AsyncSessionFactory, engine, init_db
 from common.ioc import enrich_metadata
 from common.models import CollectedMessage
+from common.noise import evaluate_message
 
 log = structlog.get_logger(__name__)
 InsertFunction = Callable[[str, str, dict[str, Any]], Awaitable[bool]]
@@ -247,6 +248,22 @@ def parse_timestamp(value: Any) -> datetime | None:
 
 async def insert_post(source: str, target: str, post: dict[str, Any]) -> bool:
     post_url = urljoin(target, post["url"]) if post.get("url") else None
+    analysis_text = " ".join(
+        (
+            str(post.get("thread_title") or ""),
+            str(post.get("body") or ""),
+        )
+    )
+    noise = await evaluate_message("darkweb", source, analysis_text)
+    if not noise.accepted:
+        log.info(
+            "darkweb_post_filtered",
+            source=source,
+            url=post_url,
+            reason=noise.reason,
+            language=noise.language,
+        )
+        return False
     if post_url:
         duplicate_query = (
             select(CollectedMessage.id)
@@ -272,13 +289,9 @@ async def insert_post(source: str, target: str, post: dict[str, Any]) -> bool:
             {
                 "forum_name": str(post.get("forum_name") or source),
                 "thread_title": str(post.get("thread_title") or ""),
+                "noise": noise.metadata(),
             },
-            " ".join(
-                (
-                    str(post.get("thread_title") or ""),
-                    str(post.get("body") or ""),
-                )
-            ),
+            analysis_text,
         ),
         attachments=[],
     )

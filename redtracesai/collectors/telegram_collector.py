@@ -8,19 +8,27 @@ import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, TypeVar
+from urllib.parse import unquote, urlparse
 
+import socks
 import structlog
 from dotenv import load_dotenv
 from sqlalchemy import select
 from telethon import TelegramClient, events
 from telethon import functions
 from telethon.errors import FloodWaitError, UserAlreadyParticipantError
+from telethon.network.connection import (
+    ConnectionTcpAbridged,
+    ConnectionTcpFull,
+    ConnectionTcpObfuscated,
+)
 from telethon.tl.types import Channel, PeerChannel
 
 from common.cti import cti_keywords, env_flag, matches_cti_keywords
 from common.db import AsyncSessionFactory, engine, init_db
 from common.ioc import enrich_metadata
 from common.models import CollectedMessage
+from common.noise import evaluate_message
 
 MAX_HASH_SIZE = 10 * 1024 * 1024
 T = TypeVar("T")
@@ -42,6 +50,51 @@ def configured_channels() -> list[str]:
         if username and username not in channels:
             channels.append(username)
     return channels
+
+
+def telegram_connection() -> type:
+    """Select a Telethon transport, with obfuscation available for DPI networks."""
+    mode = os.getenv("TELEGRAM_CONNECTION_MODE", "obfuscated").strip().lower()
+    connections = {
+        "full": ConnectionTcpFull,
+        "abridged": ConnectionTcpAbridged,
+        "obfuscated": ConnectionTcpObfuscated,
+    }
+    try:
+        return connections[mode]
+    except KeyError as error:
+        raise RuntimeError(
+            "TELEGRAM_CONNECTION_MODE must be full, abridged, or obfuscated"
+        ) from error
+
+
+def telegram_proxy() -> tuple[Any, ...] | None:
+    """Parse an optional SOCKS/HTTP proxy without logging its credentials."""
+    raw_url = os.getenv("TELEGRAM_PROXY_URL", "").strip()
+    if not raw_url:
+        return None
+
+    parsed = urlparse(raw_url)
+    proxy_types = {
+        "socks5": socks.SOCKS5,
+        "socks5h": socks.SOCKS5,
+        "socks4": socks.SOCKS4,
+        "http": socks.HTTP,
+        "https": socks.HTTP,
+    }
+    if parsed.scheme.lower() not in proxy_types or not parsed.hostname or not parsed.port:
+        raise RuntimeError(
+            "TELEGRAM_PROXY_URL must be a valid socks5h://, socks5://, "
+            "socks4://, http://, or https:// URL with a host and port"
+        )
+    return (
+        proxy_types[parsed.scheme.lower()],
+        parsed.hostname,
+        parsed.port,
+        parsed.scheme.lower() == "socks5h",
+        unquote(parsed.username) if parsed.username else None,
+        unquote(parsed.password) if parsed.password else None,
+    )
 
 
 async def discover_public_channels(
@@ -183,6 +236,21 @@ async def collect_message(message: Any, source: str) -> None:
         (message.raw_text, source)
     ):
         return
+    noise = await evaluate_message(
+        "telegram",
+        source,
+        message.raw_text,
+        has_attachments=message.media is not None,
+    )
+    if not noise.accepted:
+        log.info(
+            "telegram_message_filtered",
+            source=source,
+            message_id=message.id,
+            reason=noise.reason,
+            language=noise.language,
+        )
+        return
 
     # The lock prevents a live event and startup backfill from racing each
     # other between the existence check and commit.
@@ -211,6 +279,7 @@ async def collect_message(message: Any, source: str) -> None:
                     "message_id": message.id,
                     "views": message.views,
                     "forwards": message.forwards,
+                    "noise": noise.metadata(),
                 },
                 message.raw_text,
             ),
@@ -241,7 +310,24 @@ async def run() -> None:
     session_path.parent.mkdir(parents=True, exist_ok=True)
 
     await init_db()
-    client = TelegramClient(str(session_path), api_id, api_hash)
+    connection = telegram_connection()
+    proxy = telegram_proxy()
+    client = TelegramClient(
+        str(session_path),
+        api_id,
+        api_hash,
+        connection=connection,
+        proxy=proxy,
+        connection_retries=10,
+        retry_delay=3,
+        timeout=20,
+        auto_reconnect=True,
+    )
+    log.info(
+        "telegram_connection_configured",
+        connection_mode=os.getenv("TELEGRAM_CONNECTION_MODE", "obfuscated"),
+        proxy_enabled=proxy is not None,
+    )
     await with_flood_backoff(client.start, "client_start")
 
     try:

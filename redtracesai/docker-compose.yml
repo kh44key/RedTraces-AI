@@ -41,7 +41,54 @@ services:
       REDDIT_MAX_SUBREDDITS: ${REDDIT_MAX_SUBREDDITS:-20}
       CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
       CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
       POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  discord_collector:
+    build: .
+    command: python -m collectors.discord_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_CHANNEL_IDS: ${DISCORD_CHANNEL_IDS:-}
+      DISCORD_BACKFILL_LIMIT: ${DISCORD_BACKFILL_LIMIT:-100}
+      DISCORD_INCLUDE_BOTS: ${DISCORD_INCLUDE_BOTS:-false}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  autodiscovery_collector:
+    build: .
+    command: python -m collectors.autodiscovery_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      AUTODISCOVERY_PROVIDER: ${AUTODISCOVERY_PROVIDER:-google_cse}
+      GOOGLE_CSE_API_KEY: ${GOOGLE_CSE_API_KEY:-}
+      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID:-}
+      AUTODISCOVERY_QUERIES: ${AUTODISCOVERY_QUERIES:-}
+      AUTODISCOVERY_RESULTS_PER_QUERY: ${AUTODISCOVERY_RESULTS_PER_QUERY:-10}
+      AUTODISCOVERY_POLL_INTERVAL_SECONDS: ${AUTODISCOVERY_POLL_INTERVAL_SECONDS:-3600}
+      AUTODISCOVERY_QUERY_DELAY_SECONDS: ${AUTODISCOVERY_QUERY_DELAY_SECONDS:-5}
+      AUTODISCOVERY_REQUEST_TIMEOUT_SECONDS: ${AUTODISCOVERY_REQUEST_TIMEOUT_SECONDS:-30}
+      AUTODISCOVERY_RETRY_ATTEMPTS: ${AUTODISCOVERY_RETRY_ATTEMPTS:-4}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,11 +102,17 @@ services:
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
       TELEGRAM_CHANNELS: ${TELEGRAM_CHANNELS:-}
       TELEGRAM_SESSION: /app/sessions/redtracesai
+      TELEGRAM_CONNECTION_MODE: ${TELEGRAM_CONNECTION_MODE:-obfuscated}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
       TELEGRAM_DISCOVERY_ENABLED: ${TELEGRAM_DISCOVERY_ENABLED:-true}
       TELEGRAM_AUTO_JOIN: ${TELEGRAM_AUTO_JOIN:-true}
       TELEGRAM_MAX_CHANNELS: ${TELEGRAM_MAX_CHANNELS:-20}
       CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
       CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
     volumes:
       - telegram_session:/app/sessions
     depends_on:
@@ -90,6 +143,10 @@ services:
       DARKWEB_USER_AGENT: ${DARKWEB_USER_AGENT:-redtracesai-research/0.1}
       CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
       CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
       TOR_SOCKS_PROXY: socks5h://tor:9050
       TOR_CONTROL_HOST: tor
       TOR_CONTROL_PORT: "9051"

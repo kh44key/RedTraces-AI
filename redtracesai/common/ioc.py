@@ -7,6 +7,8 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
+from common.preprocessing import preprocess_text
+
 HASH_PATTERN = re.compile(
     r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{64}|[0-9a-fA-F]{40}|[0-9a-fA-F]{32})(?![0-9a-fA-F])"
 )
@@ -51,10 +53,8 @@ FILE_SUFFIXES = {
 
 
 def refang(value: str) -> str:
-    """Normalize common CTI defanging without changing unrelated content."""
-    normalized = re.sub(r"(?i)^hxxps://", "https://", value)
-    normalized = re.sub(r"(?i)^hxxp://", "http://", normalized)
-    return normalized.replace("[.]", ".").replace("(.)", ".")
+    """Backward-compatible wrapper around the Layer 3 preprocessor."""
+    return preprocess_text(value).text
 
 
 def _unique(values: list[str]) -> list[str]:
@@ -63,8 +63,7 @@ def _unique(values: list[str]) -> list[str]:
 
 def extract_iocs(text: str | None) -> dict[str, list[str]]:
     """Extract hashes, URLs, IP addresses, and domains from text."""
-    source = text or ""
-    normalized = refang(source)
+    normalized = preprocess_text(text).text
     indicators: dict[str, list[str]] = {
         "sha256": [],
         "sha1": [],
@@ -118,10 +117,12 @@ def extract_iocs(text: str | None) -> dict[str, list[str]]:
 
 
 def enrich_metadata(metadata: dict[str, Any], text: str | None) -> dict[str, Any]:
-    """Attach IOC results and a count to source-specific metadata."""
-    iocs = extract_iocs(text)
+    """Attach Layer 3 preprocessing and regex IOC extraction results."""
+    preprocessing = preprocess_text(text)
+    iocs = extract_iocs(preprocessing.text)
     return {
         **metadata,
+        "preprocessing": preprocessing.metadata(),
         "iocs": iocs,
         "ioc_count": sum(len(values) for values in iocs.values()),
     }

@@ -26,7 +26,8 @@ class CollectedMessage(Base):
     __tablename__ = "collected_messages"
     __table_args__ = (
         CheckConstraint(
-            "platform IN ('telegram', 'reddit', 'darkweb')",
+            "platform IN "
+            "('telegram', 'discord', 'reddit', 'darkweb', 'autodiscovery')",
             name="ck_collected_messages_platform",
         ),
     )
