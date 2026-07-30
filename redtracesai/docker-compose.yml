@@ -107,6 +107,7 @@ services:
       TELEGRAM_DISCOVERY_ENABLED: ${TELEGRAM_DISCOVERY_ENABLED:-true}
       TELEGRAM_AUTO_JOIN: ${TELEGRAM_AUTO_JOIN:-true}
       TELEGRAM_MAX_CHANNELS: ${TELEGRAM_MAX_CHANNELS:-20}
+      TELEGRAM_BACKFILL_LIMIT: ${TELEGRAM_BACKFILL_LIMIT:-100}
       CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
       CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
       NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}

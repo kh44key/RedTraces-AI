@@ -52,6 +52,19 @@ def configured_channels() -> list[str]:
     return channels
 
 
+def configured_backfill_limit() -> int:
+    raw_limit = os.getenv("TELEGRAM_BACKFILL_LIMIT", "100")
+    try:
+        limit = int(raw_limit)
+    except ValueError as error:
+        raise RuntimeError("TELEGRAM_BACKFILL_LIMIT must be an integer") from error
+    if not 0 <= limit <= 5000:
+        raise RuntimeError(
+            "TELEGRAM_BACKFILL_LIMIT must be between 0 and 5000"
+        )
+    return limit
+
+
 def telegram_connection() -> type:
     """Select a Telethon transport, with obfuscation available for DPI networks."""
     mode = os.getenv("TELEGRAM_CONNECTION_MODE", "obfuscated").strip().lower()
@@ -229,13 +242,13 @@ async def already_collected(source: str, message_id: int) -> bool:
         return await session.scalar(query) is not None
 
 
-async def collect_message(message: Any, source: str) -> None:
+async def collect_message(message: Any, source: str) -> bool:
     if message.id is None:
-        return
+        return False
     if env_flag("CTI_FILTER_CONTENT", True) and not matches_cti_keywords(
         (message.raw_text, source)
     ):
-        return
+        return False
     noise = await evaluate_message(
         "telegram",
         source,
@@ -250,13 +263,13 @@ async def collect_message(message: Any, source: str) -> None:
             reason=noise.reason,
             language=noise.language,
         )
-        return
+        return False
 
     # The lock prevents a live event and startup backfill from racing each
     # other between the existence check and commit.
     async with insert_lock:
         if await already_collected(source, message.id):
-            return
+            return False
 
         sender = await with_flood_backoff(
             message.get_sender, f"get_sender:{source}:{message.id}"
@@ -297,6 +310,7 @@ async def collect_message(message: Any, source: str) -> None:
             url=row.url,
             fetched_iocs=row.metadata_["ioc_count"],
         )
+        return True
 
 
 async def run() -> None:
@@ -304,6 +318,7 @@ async def run() -> None:
     api_id = int(required_env("TELEGRAM_API_ID"))
     api_hash = required_env("TELEGRAM_API_HASH")
     channels = configured_channels()
+    backfill_limit = configured_backfill_limit()
     session_path = Path(
         os.getenv("TELEGRAM_SESSION", "sessions/redtracesai")
     )
@@ -346,16 +361,35 @@ async def run() -> None:
         entities: list[Any] = []
         source_by_channel_id: dict[int, str] = {}
         for username in channels:
-            entity = await with_flood_backoff(
-                lambda username=username: client.get_entity(username),
-                f"resolve_channel:{username}",
-            )
+            try:
+                entity = await with_flood_backoff(
+                    lambda username=username: client.get_entity(username),
+                    f"resolve_channel:{username}",
+                )
+            except Exception as error:
+                log.warning(
+                    "telegram_channel_resolve_failed",
+                    channel=username,
+                    error_type=type(error).__name__,
+                    error=str(error),
+                )
+                continue
             try:
                 await join_public_channel(client, entity)
-            except Exception:
-                log.exception("telegram_channel_join_failed", channel=username)
+            except Exception as error:
+                log.warning(
+                    "telegram_channel_join_failed",
+                    channel=username,
+                    error_type=type(error).__name__,
+                    error=str(error),
+                )
             entities.append(entity)
             source_by_channel_id[entity.id] = username
+
+        if not entities:
+            raise RuntimeError(
+                "None of the configured Telegram channels could be resolved"
+            )
 
         async def handle_new_message(event: events.NewMessage.Event) -> None:
             channel_id = channel_id_from_message(event.message)
@@ -376,13 +410,48 @@ async def run() -> None:
         for entity in entities:
             source = source_by_channel_id[entity.id]
 
-            async def backfill() -> None:
-                async for message in client.iter_messages(entity, limit=100):
-                    await collect_message(message, source)
+            async def backfill(
+                entity: Any = entity, source: str = source
+            ) -> tuple[int, int]:
+                examined = 0
+                inserted = 0
+                async for message in client.iter_messages(
+                    entity, limit=backfill_limit
+                ):
+                    examined += 1
+                    if await collect_message(message, source):
+                        inserted += 1
+                return examined, inserted
 
-            await with_flood_backoff(backfill, f"backfill:{source}")
+            log.info(
+                "telegram_backfill_started",
+                source=source,
+                limit=backfill_limit,
+            )
+            try:
+                examined, inserted = await with_flood_backoff(
+                    backfill, f"backfill:{source}"
+                )
+                log.info(
+                    "telegram_backfill_complete",
+                    source=source,
+                    examined=examined,
+                    inserted=inserted,
+                )
+            except Exception as error:
+                log.warning(
+                    "telegram_backfill_failed",
+                    source=source,
+                    error_type=type(error).__name__,
+                    error=str(error),
+                )
 
-        log.info("telegram_live_listener_started", channels=channels)
+        active_channels = list(source_by_channel_id.values())
+        log.info(
+            "telegram_live_listener_started",
+            channels=active_channels,
+            backfill_limit=backfill_limit,
+        )
         await client.run_until_disconnected()
     finally:
         await client.disconnect()
