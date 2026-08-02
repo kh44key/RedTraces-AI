@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import socket
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
@@ -106,6 +107,69 @@ class ExampleForumAdapter(DarkWebAdapter):
         return parser.posts
 
 
+class _PageMetadataHTMLParser(HTMLParser):
+    """Extract a bounded title and visible text from a public landing page."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.title = ""
+        self.text_parts: list[str] = []
+        self._in_title = False
+        self._ignored_depth = 0
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        if tag in {"script", "style", "noscript"}:
+            self._ignored_depth += 1
+        elif tag == "title":
+            self._in_title = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style", "noscript"} and self._ignored_depth:
+            self._ignored_depth -= 1
+        elif tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data: str) -> None:
+        cleaned = " ".join(data.split())
+        if not cleaned or self._ignored_depth:
+            return
+        if self._in_title:
+            self.title = f"{self.title} {cleaned}".strip()[:512]
+        if sum(len(part) for part in self.text_parts) < 8000:
+            self.text_parts.append(cleaned)
+
+
+class PageMetadataAdapter(DarkWebAdapter):
+    """Represent one approved public landing page as a dashboard signal.
+
+    This deliberately does not inspect outbound links.  It enables a safe,
+    root-page-only intake mode for sources whose HTML does not expose a stable
+    forum-post structure.
+    """
+
+    def __init__(self, source_name: str) -> None:
+        self.source_name = source_name
+
+    def parse(self, html: str) -> list[dict[str, Any]]:
+        parser = _PageMetadataHTMLParser()
+        parser.feed(html)
+        body = " ".join(parser.text_parts).strip()
+        if not body:
+            return []
+        return [
+            {
+                "forum_name": self.source_name,
+                "url": None,
+                "posted_at": None,
+                "author": None,
+                "thread_title": parser.title or self.source_name,
+                "body": body,
+            }
+        ]
+
+
 class _LinkParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -143,6 +207,8 @@ ADAPTERS: dict[str, type[DarkWebAdapter]] = {}
 
 def adapter_for_target(target: str) -> DarkWebAdapter:
     domain = target_domain(target)
+    if env_flag("DARKWEB_METADATA_ONLY", True):
+        return PageMetadataAdapter(domain)
     adapter_class = ADAPTERS.get(domain, ExampleForumAdapter)
     return adapter_class(domain)  # type: ignore[call-arg]
 
@@ -179,7 +245,8 @@ def connect_to_tor_control() -> None:
 
     for attempt in range(attempts):
         try:
-            with Controller.from_port(address=host, port=port) as controller:
+            address = socket.gethostbyname(host)
+            with Controller.from_port(address=address, port=port) as controller:
                 controller.authenticate(password=password)
                 bootstrap = controller.get_info("status/bootstrap-phase", "")
                 log.info("tor_control_connected", bootstrap=bootstrap)
@@ -338,8 +405,11 @@ async def crawl_target(
     insert_function: InsertFunction = insert_post,
 ) -> int:
     """Crawl a bounded set of same-onion pages from an approved seed URL."""
-    maximum_depth = int(os.getenv("DARKWEB_MAX_DEPTH", "2"))
-    maximum_pages = int(os.getenv("DARKWEB_MAX_PAGES_PER_TARGET", "100"))
+    metadata_only = env_flag("DARKWEB_METADATA_ONLY", True)
+    maximum_depth = 0 if metadata_only else int(os.getenv("DARKWEB_MAX_DEPTH", "2"))
+    maximum_pages = (
+        1 if metadata_only else int(os.getenv("DARKWEB_MAX_PAGES_PER_TARGET", "100"))
+    )
     crawl_delay = float(os.getenv("DARKWEB_CRAWL_DELAY_SECONDS", "10"))
     keywords = cti_keywords()
     source = target_domain(seed)
@@ -400,7 +470,10 @@ async def run() -> None:
         raise RuntimeError("Crawl delay must be non-negative and poll interval positive")
 
     await init_db()
-    await asyncio.to_thread(connect_to_tor_control)
+    if env_flag("DARKWEB_REQUIRE_TOR_CONTROL", False):
+        await asyncio.to_thread(connect_to_tor_control)
+    else:
+        log.info("tor_control_check_skipped", reason="not_required")
     session = build_http_session()
     try:
         while True:

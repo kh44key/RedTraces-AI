@@ -3,3 +3,9 @@
 .venv
 __pycache__
 *.py[cod]
+models/*.bin
+models/*.ftz
+models/*.joblib
+frontend/node_modules
+frontend/.npm-cache
+data/

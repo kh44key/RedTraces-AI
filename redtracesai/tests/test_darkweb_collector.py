@@ -5,7 +5,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from collectors.darkweb_collector import DarkWebAdapter, process_target
+from collectors.darkweb_collector import (
+    DarkWebAdapter,
+    PageMetadataAdapter,
+    process_target,
+)
 
 
 class MockAdapter(DarkWebAdapter):
@@ -57,6 +61,22 @@ class ProcessTargetTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(target, "http://examplemockaddress.onion/forum/")
         self.assertEqual(post["body"], "Example post body")
         self.assertEqual(post["thread_title"], "Example thread")
+
+
+class PageMetadataAdapterTest(unittest.TestCase):
+    def test_extracts_visible_landing_page_text_without_script_content(self) -> None:
+        adapter = PageMetadataAdapter("research-source.onion")
+
+        posts = adapter.parse(
+            "<html><head><title>Threat bulletin</title><script>ignore me</script>"
+            "</head><body><h1>Ransomware update</h1><p>C2: node[.]example</p>"
+            "</body></html>"
+        )
+
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]["thread_title"], "Threat bulletin")
+        self.assertIn("Ransomware update", posts[0]["body"])
+        self.assertNotIn("ignore me", posts[0]["body"])
 
 
 if __name__ == "__main__":

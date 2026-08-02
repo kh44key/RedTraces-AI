@@ -1,4 +1,4 @@
-"""Collect messages from explicitly configured Discord channels."""
+"""Collect messages from configured or keyword-discovered Discord channels."""
 
 from __future__ import annotations
 
@@ -44,6 +44,16 @@ def configured_channel_ids() -> set[int]:
         return {int(value) for value in raw_values}
     except ValueError as error:
         raise RuntimeError("DISCORD_CHANNEL_IDS must contain only numeric IDs") from error
+
+
+def configured_channel_keywords() -> tuple[str, ...]:
+    """Return channel-name/topic keywords for approved, accessible guilds only."""
+    values = [
+        value.strip().lower()
+        for value in os.getenv("DISCORD_CHANNEL_KEYWORDS", "").split(",")
+        if value.strip()
+    ]
+    return tuple(dict.fromkeys(values))
 
 
 def source_name(message: discord.Message) -> str:
@@ -165,7 +175,12 @@ async def collect_message(message: discord.Message) -> bool:
 
 
 class DiscordCollector(discord.Client):
-    def __init__(self, channel_ids: set[int], backfill_limit: int) -> None:
+    def __init__(
+        self,
+        channel_ids: set[int],
+        backfill_limit: int,
+        discovery_keywords: tuple[str, ...] = (),
+    ) -> None:
         intents = discord.Intents.none()
         intents.guilds = True
         intents.messages = True
@@ -173,13 +188,35 @@ class DiscordCollector(discord.Client):
         super().__init__(intents=intents)
         self.channel_ids = channel_ids
         self.backfill_limit = backfill_limit
+        self.discovery_keywords = discovery_keywords
         self.backfill_complete = False
 
+    def discover_accessible_channels(self) -> set[int]:
+        """Find matching text channels only in guilds where this bot is installed."""
+        discovered: set[int] = set()
+        if not self.discovery_keywords:
+            return discovered
+        for guild in self.guilds:
+            for channel in guild.text_channels:
+                searchable = f"{channel.name} {channel.topic or ''}".lower()
+                if any(keyword in searchable for keyword in self.discovery_keywords):
+                    discovered.add(channel.id)
+                    log.info(
+                        "discord_accessible_channel_discovered",
+                        guild_id=str(guild.id),
+                        channel_id=str(channel.id),
+                        channel_name=channel.name,
+                    )
+        return discovered
+
     async def on_ready(self) -> None:
+        discovered = self.discover_accessible_channels()
+        self.channel_ids.update(discovered)
         log.info(
             "discord_collector_ready",
             bot_user=str(self.user),
             channel_ids=sorted(self.channel_ids),
+            discovered_channel_count=len(discovered),
         )
         if self.backfill_complete:
             return
@@ -230,13 +267,25 @@ class DiscordCollector(discord.Client):
 async def run() -> None:
     load_dotenv()
     token = required_env("DISCORD_BOT_TOKEN")
-    channel_ids = configured_channel_ids()
+    discovery_enabled = env_flag("DISCORD_DISCOVERY_ENABLED", False)
+    try:
+        channel_ids = configured_channel_ids()
+    except RuntimeError:
+        if not discovery_enabled:
+            raise
+        channel_ids = set()
+    discovery_keywords = configured_channel_keywords() if discovery_enabled else ()
+    if not channel_ids and not discovery_keywords:
+        raise RuntimeError(
+            "Configure DISCORD_CHANNEL_IDS or enable DISCORD_DISCOVERY_ENABLED "
+            "with DISCORD_CHANNEL_KEYWORDS"
+        )
     backfill_limit = int(os.getenv("DISCORD_BACKFILL_LIMIT", "100"))
     if not 0 <= backfill_limit <= 1000:
         raise RuntimeError("DISCORD_BACKFILL_LIMIT must be between 0 and 1000")
 
     await init_db()
-    client = DiscordCollector(channel_ids, backfill_limit)
+    client = DiscordCollector(channel_ids, backfill_limit, discovery_keywords)
     try:
         await client.start(token)
     finally:

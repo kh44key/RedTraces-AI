@@ -30,7 +30,9 @@ const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replac
 );
 const DEMO_MODE =
   String(import.meta.env.VITE_DEMO_MODE || "").toLowerCase() === "true";
-const PAGE_SIZE = 50;
+// Load the API's maximum page on first view so lower-volume sources (such as
+// auto-discovery) remain visible alongside a Telegram backfill.
+const PAGE_SIZE = 200;
 
 type Message = {
   id: string;
@@ -61,6 +63,16 @@ type Stats = {
   total: number;
   last_hour: number;
   unique_channels: number;
+};
+
+type Layer2Metrics = {
+  available: boolean;
+  processed: number;
+  accepted: number;
+  rejected: number;
+  languages: Record<string, number>;
+  detectors: Record<string, number>;
+  reasons: Record<string, number>;
 };
 
 type IOC = { type: string; value: string };
@@ -168,7 +180,7 @@ function NavItem({
       <Icon size={17} strokeWidth={1.7} />
       <span>{label}</span>
       {count !== undefined && (
-        <span className="ml-auto rounded-md bg-[#dff3e8] px-1.5 py-0.5 font-mono text-[9px] font-semibold text-[#167449]">
+        <span className="ml-auto rounded-md bg-[#fee2e2] px-1.5 py-0.5 font-mono text-[9px] font-semibold text-[#c1121f]">
           {count}
         </span>
       )}
@@ -193,8 +205,8 @@ function StatCard({
     <section
       className={`rounded-[22px] border p-5 ${
         primary
-          ? "border-[#126b43] bg-gradient-to-br from-[#0e5336] to-[#1f8b59] text-white shadow-[0_16px_30px_rgba(18,107,67,0.18)]"
-          : "border-[#edf0ee] bg-white text-[#142019]"
+          ? "border-[#991b1b] bg-gradient-to-br from-[#7f1d1d] to-[#dc2626] text-white shadow-[0_16px_30px_rgba(153,27,27,0.20)]"
+          : "border-[#f0dfe1] bg-white text-[#231113]"
       }`}
     >
       <div className="flex items-center justify-between">
@@ -203,7 +215,7 @@ function StatCard({
         </p>
         <span
           className={`grid h-8 w-8 place-items-center rounded-full ${
-            primary ? "bg-white text-[#145d3d]" : "border border-[#dfe5e1]"
+            primary ? "bg-white text-[#991b1b]" : "border border-[#ead5d8]"
           }`}
         >
           <Icon size={14} strokeWidth={1.8} />
@@ -214,7 +226,7 @@ function StatCard({
       </p>
       <p
         className={`mt-3 text-[10px] ${
-          primary ? "text-[#a9e8c7]" : "text-[#789086]"
+          primary ? "text-[#fecaca]" : "text-[#977177]"
         }`}
       >
         {detail}
@@ -241,7 +253,7 @@ function MessageRow({ message }: { message: Message }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.24 }}
-      className="group border-b border-[#edf0ee] px-1 py-5 last:border-b-0"
+      className="group border-b border-[#f0dfe1] px-1 py-5 last:border-b-0"
     >
       <div className="flex gap-3.5">
         <div
@@ -264,26 +276,26 @@ function MessageRow({ message }: { message: Message }) {
             <time
               dateTime={timestamp}
               title={new Date(timestamp).toLocaleString()}
-              className="shrink-0 text-[10px] text-[#91a098]"
+              className="shrink-0 text-[10px] text-[#a18488]"
             >
               {relativeTime(timestamp)}
             </time>
           </div>
 
-          <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-[1.7] text-[#536259]">
-            {body || <span className="italic text-[#a4afa9]">Media only</span>}
+          <p className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-[1.7] text-[#5b3a40]">
+            {body || <span className="italic text-[#b69da0]">Media only</span>}
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 font-mono text-[9px] text-[#9aa69f]">
+            <span className="inline-flex items-center gap-1 font-mono text-[9px] text-[#a98f93]">
               <Hash size={9} />
               {String(message.metadata.message_id ?? message.id)}
             </span>
             {message.author && (
-              <span className="text-[9px] text-[#9aa69f]">by {message.author}</span>
+              <span className="text-[9px] text-[#a98f93]">by {message.author}</span>
             )}
             {iocs.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#fff5d9] px-2 py-1 text-[9px] font-semibold text-[#9b6b00]">
+              <span className="inline-flex items-center gap-1 rounded-md bg-[#fff0f0] px-2 py-1 text-[9px] font-semibold text-[#b42332]">
                 <ShieldCheck size={10} />
                 {iocs.length} fetched IOC{iocs.length === 1 ? "" : "s"}
               </span>
@@ -296,16 +308,16 @@ function MessageRow({ message }: { message: Message }) {
                 <span
                   key={`${ioc.type}:${ioc.value}`}
                   title={ioc.value}
-                  className="max-w-full truncate rounded-lg border border-[#e7ebe8] bg-[#f7f9f8] px-2 py-1 font-mono text-[8px] text-[#64746b]"
+                  className="max-w-full truncate rounded-lg border border-[#efdfe1] bg-[#fffafa] px-2 py-1 font-mono text-[8px] text-[#705257]"
                 >
-                  <b className="mr-1 font-medium text-[#167449]">
+                  <b className="mr-1 font-medium text-[#c1121f]">
                     {IOC_LABELS[ioc.type] || ioc.type}
                   </b>
                   {ioc.value}
                 </span>
               ))}
               {!expanded && iocs.length > 4 && (
-                <span className="px-1 py-1 text-[9px] text-[#91a098]">
+                <span className="px-1 py-1 text-[9px] text-[#a18488]">
                   +{iocs.length - 4} more
                 </span>
               )}
@@ -316,7 +328,7 @@ function MessageRow({ message }: { message: Message }) {
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#167449]"
+              className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#c1121f]"
             >
               {expanded ? "Show less" : "Read full message"}
               <ChevronDown
@@ -369,6 +381,13 @@ export default function App() {
     enabled: !DEMO_MODE,
   });
 
+  const layer2 = useQuery({
+    queryKey: ["layer2-metrics"],
+    queryFn: () => getJson<Layer2Metrics>("/api/layer2/metrics"),
+    refetchInterval: 15_000,
+    enabled: !DEMO_MODE,
+  });
+
   useEffect(() => {
     const timer = window.setInterval(() => setClock((value) => value + 1), 30_000);
     return () => window.clearInterval(timer);
@@ -392,6 +411,7 @@ export default function App() {
         ...current.filter((message) => message.id !== incoming.id),
       ]);
       void queryClient.invalidateQueries({ queryKey: ["stats", "all"] });
+      void queryClient.invalidateQueries({ queryKey: ["layer2-metrics"] });
     });
     return () => stream.close();
   }, [queryClient]);
@@ -494,22 +514,22 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#e9ecea] p-2 text-[#17221c] sm:p-4">
-      <div className="mx-auto flex min-h-[calc(100vh-16px)] max-w-[1560px] overflow-hidden rounded-[28px] border border-white/80 bg-[#f5f6f5] shadow-[0_24px_70px_rgba(41,55,47,0.10)] sm:min-h-[calc(100vh-32px)]">
-        <aside className="hidden w-[224px] shrink-0 flex-col border-r border-[#e8ece9] bg-[#fafbfa] px-4 py-6 lg:flex">
+    <div className="red-theme min-h-screen bg-[#f8f4f4] p-2 text-[#2b1115] sm:p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-16px)] max-w-[1560px] overflow-hidden rounded-[28px] border border-white/80 bg-[#fcf8f8] shadow-[0_24px_70px_rgba(82,25,32,0.12)] sm:min-h-[calc(100vh-32px)]">
+        <aside className="hidden w-[224px] shrink-0 flex-col border-r border-[#f0e2e4] bg-[#fffafa] px-4 py-6 lg:flex">
           <div className="flex items-center gap-2.5 px-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#167449] text-white shadow-[0_8px_18px_rgba(22,116,73,0.22)]">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#c1121f] text-white shadow-[0_8px_18px_rgba(193,18,31,0.24)]">
               <CircleDot size={18} />
             </span>
             <div>
               <p className="text-[15px] font-semibold tracking-[-0.02em]">RedTraces</p>
-              <p className="text-[8px] uppercase tracking-[0.18em] text-[#8b9991]">
+              <p className="text-[8px] uppercase tracking-[0.18em] text-[#ab8d92]">
                 CTI workspace
               </p>
             </div>
           </div>
 
-          <p className="mb-2 mt-10 px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#a3ada7]">
+          <p className="mb-2 mt-10 px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#b99da1]">
             Workspace
           </p>
           <nav className="space-y-1">
@@ -541,7 +561,7 @@ export default function App() {
             />
           </nav>
 
-          <p className="mb-2 mt-8 px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#a3ada7]">
+          <p className="mb-2 mt-8 px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#b99da1]">
             Channels
           </p>
           <div className="max-h-[270px] space-y-1 overflow-y-auto">
@@ -569,7 +589,7 @@ export default function App() {
           </div>
 
           <div className="mt-auto">
-            <div className="mb-4 rounded-[18px] bg-[#102f23] p-4 text-white">
+            <div className="mb-4 rounded-[18px] bg-[#2b1115] p-4 text-white">
               <div className="flex items-center gap-2 text-[10px] text-white/65">
                 <Wifi size={12} />
                 Collector status
@@ -578,7 +598,7 @@ export default function App() {
                 {DEMO_MODE ? "Demo workspace" : streamOnline ? "Stream online" : "Reconnecting"}
               </p>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-[78%] rounded-full bg-[#5ed69b]" />
+                <div className="h-full w-[78%] rounded-full bg-[#fb7185]" />
               </div>
             </div>
             <NavItem icon={Settings} label="Settings" />
@@ -591,14 +611,14 @@ export default function App() {
             <div className="relative max-w-[430px] flex-1">
               <Search
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#809087]"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a5878c]"
               />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search signals, sources or IOCs"
                 aria-label="Search signals"
-                className="h-10 w-full rounded-xl bg-[#f6f8f7] pl-9 pr-3 text-[11px] outline-none placeholder:text-[#a5afa9] focus:ring-2 focus:ring-[#167449]/15"
+                className="h-10 w-full rounded-xl bg-[#fff9f9] pl-9 pr-3 text-[11px] outline-none placeholder:text-[#b79ca1] focus:ring-2 focus:ring-[#c1121f]/15"
               />
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -616,17 +636,17 @@ export default function App() {
               <button
                 type="button"
                 aria-label="Notifications"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#edf0ee] text-[#506057]"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[#f0dfe1] text-[#67474d]"
               >
                 <Bell size={15} />
               </button>
-              <div className="hidden items-center gap-2.5 border-l border-[#edf0ee] pl-3 sm:flex">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#dcefe5] text-[12px] font-semibold text-[#167449]">
+              <div className="hidden items-center gap-2.5 border-l border-[#f0dfe1] pl-3 sm:flex">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#ffe4e6] text-[12px] font-semibold text-[#c1121f]">
                   RT
                 </span>
                 <div>
                   <p className="text-[11px] font-semibold">Threat Analyst</p>
-                  <p className="text-[9px] text-[#96a29b]">
+                  <p className="text-[9px] text-[#ac9095]">
                     {DEMO_MODE ? "Demo environment" : "Live environment"}
                   </p>
                 </div>
@@ -638,13 +658,13 @@ export default function App() {
           <main className="px-1 pb-3 pt-6 sm:px-2">
             <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#167449]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#c1121f]">
                   Intelligence overview
                 </p>
                 <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.045em]">
                   Security dashboard
                 </h1>
-                <p className="mt-1 text-[11px] text-[#85938b]">
+                <p className="mt-1 text-[11px] text-[#a6878c]">
                   Monitor incoming signals and extracted indicators in one place.
                 </p>
               </div>
@@ -654,8 +674,8 @@ export default function App() {
                 aria-pressed={iocOnly}
                 className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-[11px] font-semibold transition ${
                   iocOnly
-                    ? "bg-[#167449] text-white shadow-[0_8px_18px_rgba(22,116,73,0.18)]"
-                    : "border border-[#cfd8d3] bg-white text-[#45564c]"
+                    ? "bg-[#c1121f] text-white shadow-[0_8px_18px_rgba(22,116,73,0.18)]"
+                    : "border border-[#e7cfd3] bg-white text-[#5b3a40]"
                 }`}
               >
                 <ShieldCheck size={14} />
@@ -691,12 +711,61 @@ export default function App() {
               />
             </div>
 
+            <section className="mt-3 rounded-[22px] border border-[#f0dfe1] bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-[14px] font-semibold">Layer 2 · Noise filtering</h2>
+                  <p className="mt-1 text-[10px] text-[#a18488]">
+                    Decisions are made before a signal enters the live feed.
+                  </p>
+                </div>
+                <span
+                  className={`rounded-lg px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.1em] ${
+                    layer2.data?.available
+                      ? "bg-[#fff1f2] text-[#c1121f]"
+                      : "bg-[#f5f3f4] text-[#997d82]"
+                  }`}
+                >
+                  {layer2.data?.available ? "Live counters" : "Connecting"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {[
+                  ["Processed", layer2.data?.processed ?? 0, "Evaluated by Layer 2"],
+                  ["Accepted", layer2.data?.accepted ?? 0, "Passed into the dashboard"],
+                  ["Filtered", layer2.data?.rejected ?? 0, "Noise or duplicate removed"],
+                ].map(([label, value, detail]) => (
+                  <div key={String(label)} className="rounded-xl bg-[#fff7f7] p-3">
+                    <p className="text-[9px] font-medium text-[#977177]">{label}</p>
+                    <p className="mt-1 text-[20px] font-semibold tracking-[-0.04em]">
+                      {Number(value).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-[8px] text-[#a18488]">{detail}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 text-[9px]">
+                <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
+                  FastText language detection: {layer2.data?.detectors.fasttext_lid176 ?? 0}
+                </span>
+                <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
+                  MinHash/LSH near duplicates: {layer2.data?.reasons.near_duplicate ?? 0}
+                </span>
+                <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
+                  Redis 24h cache duplicates: {layer2.data?.reasons.duplicate_cache ?? 0}
+                </span>
+                <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
+                  Spam model: test-only until CTI-labelled training data is approved
+                </span>
+              </div>
+            </section>
+
             <div className="mt-3 grid gap-3 xl:grid-cols-12">
-              <section className="rounded-[22px] border border-[#edf0ee] bg-white p-5 xl:col-span-8">
+              <section className="rounded-[22px] border border-[#f0dfe1] bg-white p-5 xl:col-span-8">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-[14px] font-semibold">Live signal feed</h2>
-                    <p className="mt-1 text-[10px] text-[#91a098]">
+                    <p className="mt-1 text-[10px] text-[#a18488]">
                       {selectedChannel === "all"
                         ? DEMO_MODE
                           ? "Synthetic Telegram, Reddit and Discord intelligence"
@@ -704,8 +773,8 @@ export default function App() {
                         : `Filtered to ${selectedChannel}`}
                     </p>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf7f1] px-2.5 py-1.5 text-[9px] font-semibold text-[#167449]">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1e9b62]" />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#fff1f2] px-2.5 py-1.5 text-[9px] font-semibold text-[#c1121f]">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#e11d48]" />
                     {visibleMessages.length} visible
                   </span>
                 </div>
@@ -713,12 +782,12 @@ export default function App() {
                 {!DEMO_MODE && history.isError ? (
                   <div className="grid min-h-60 place-items-center text-center">
                     <div>
-                      <ServerCrash className="mx-auto text-[#b5beba]" size={24} />
+                      <ServerCrash className="mx-auto text-[#cbb5b9]" size={24} />
                       <p className="mt-3 text-[12px] font-semibold">Feed unavailable</p>
                       <button
                         type="button"
                         onClick={() => void history.refetch()}
-                        className="mt-2 text-[10px] font-semibold text-[#167449]"
+                        className="mt-2 text-[10px] font-semibold text-[#c1121f]"
                       >
                         Retry connection
                       </button>
@@ -736,7 +805,7 @@ export default function App() {
                         {[0, 1, 2].map((item) => (
                           <div
                             key={item}
-                            className="h-28 animate-pulse rounded-xl bg-[#f5f7f6]"
+                            className="h-28 animate-pulse rounded-xl bg-[#fff7f7]"
                           />
                         ))}
                       </div>
@@ -745,8 +814,8 @@ export default function App() {
                       visibleMessages.length === 0 && (
                         <div className="grid min-h-52 place-items-center text-center">
                           <div>
-                            <Radio className="mx-auto text-[#c1c9c4]" size={22} />
-                            <p className="mt-3 text-[11px] text-[#7f8e85]">
+                            <Radio className="mx-auto text-[#cfb7bb]" size={22} />
+                            <p className="mt-3 text-[11px] text-[#96787d]">
                               No signals match this view
                             </p>
                           </div>
@@ -757,7 +826,7 @@ export default function App() {
                         type="button"
                         disabled={history.isFetchingNextPage}
                         onClick={() => void history.fetchNextPage()}
-                        className="mt-4 w-full rounded-xl border border-[#e5eae7] py-2.5 text-[10px] font-semibold text-[#64746b]"
+                        className="mt-4 w-full rounded-xl border border-[#eedee0] py-2.5 text-[10px] font-semibold text-[#705257]"
                       >
                         {history.isFetchingNextPage
                           ? "Loading archive…"
@@ -769,11 +838,11 @@ export default function App() {
               </section>
 
               <div className="space-y-3 xl:col-span-4">
-                <section className="rounded-[22px] border border-[#edf0ee] bg-white p-5">
+                <section className="rounded-[22px] border border-[#f0dfe1] bg-white p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-[14px] font-semibold">IOC overview</h2>
-                      <p className="mt-1 text-[10px] text-[#91a098]">
+                      <p className="mt-1 text-[10px] text-[#a18488]">
                         Indicator composition
                       </p>
                     </div>
@@ -785,7 +854,7 @@ export default function App() {
                     <div
                       className="relative grid h-28 w-28 shrink-0 place-items-center rounded-full"
                       style={{
-                        background: `conic-gradient(#167449 0 68%, #dce8e1 68% 82%, #eff2f0 82% 100%)`,
+                        background: `conic-gradient(#c1121f 0 68%, #ffe4e6 68% 82%, #f4e7e8 82% 100%)`,
                       }}
                     >
                       <div className="grid h-[76px] w-[76px] place-items-center rounded-full bg-white text-center">
@@ -793,7 +862,7 @@ export default function App() {
                           <p className="text-[24px] font-semibold leading-none tracking-[-0.05em]">
                             {allIocs.length}
                           </p>
-                          <p className="mt-1 text-[8px] text-[#8b9991]">Extracted</p>
+                          <p className="mt-1 text-[8px] text-[#ab8d92]">Extracted</p>
                         </div>
                       </div>
                     </div>
@@ -801,21 +870,21 @@ export default function App() {
                       {iocDistribution.slice(0, 4).map(([type, count]) => (
                         <div key={type}>
                           <div className="mb-1 flex justify-between text-[9px]">
-                            <span className="text-[#68776e]">
+                            <span className="text-[#806267]">
                               {IOC_LABELS[type] || type}
                             </span>
                             <span className="font-semibold">{count}</span>
                           </div>
                           <div className="h-1.5 rounded-full bg-[#edf1ef]">
                             <div
-                              className="h-full rounded-full bg-[#238b5c]"
+                              className="h-full rounded-full bg-[#e11d48]"
                               style={{ width: `${(count / maxIocCount) * 100}%` }}
                             />
                           </div>
                         </div>
                       ))}
                       {iocDistribution.length === 0 && (
-                        <p className="text-[10px] text-[#91a098]">
+                        <p className="text-[10px] text-[#a18488]">
                           No IOCs in this view yet.
                         </p>
                       )}
@@ -823,15 +892,15 @@ export default function App() {
                   </div>
                 </section>
 
-                <section className="rounded-[22px] border border-[#edf0ee] bg-white p-5">
+                <section className="rounded-[22px] border border-[#f0dfe1] bg-white p-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-[14px] font-semibold">Source health</h2>
-                      <p className="mt-1 text-[10px] text-[#91a098]">
+                      <p className="mt-1 text-[10px] text-[#a18488]">
                         Collector connectivity
                       </p>
                     </div>
-                    <span className="rounded-lg bg-[#edf7f1] px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.1em] text-[#167449]">
+                    <span className="rounded-lg bg-[#fff1f2] px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.1em] text-[#c1121f]">
                       {DEMO_MODE ? "Demo" : "Live"}
                     </span>
                   </div>
@@ -847,7 +916,7 @@ export default function App() {
                         <span
                           className={`grid h-8 w-8 place-items-center rounded-lg ${
                             online
-                              ? "bg-[#e9f5ef] text-[#167449]"
+                              ? "bg-[#fff1f2] text-[#c1121f]"
                               : "bg-[#f2f3f2] text-[#9aa49e]"
                           }`}
                         >
@@ -859,7 +928,7 @@ export default function App() {
                         </div>
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            online ? "bg-[#26a86b]" : "bg-[#bdc5c0]"
+                            online ? "bg-[#f43f5e]" : "bg-[#cfb9bd]"
                           }`}
                         />
                       </div>

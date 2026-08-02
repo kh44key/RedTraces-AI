@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+import redis.asyncio as redis
 from sqlalchemy import func, or_, select
 
 from common.db import AsyncSessionFactory, engine, init_db
@@ -124,6 +125,43 @@ async def stats(platform: str | None = Query(default=None)) -> dict[str, int]:
         "last_hour": int(recent or 0),
         "unique_channels": int(channels or 0),
     }
+
+
+@app.get("/api/layer2/metrics")
+async def layer2_metrics() -> dict[str, Any]:
+    """Expose non-content Layer 2 counters for the dashboard."""
+    url = os.getenv("REDIS_URL", "").strip()
+    empty: dict[str, Any] = {
+        "available": False,
+        "processed": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "languages": {},
+        "detectors": {},
+        "reasons": {},
+    }
+    if not url:
+        return empty
+    client = redis.from_url(url, decode_responses=True)
+    try:
+        raw = await client.hgetall("redtraces:layer2:metrics")
+    except redis.RedisError:
+        return empty
+    finally:
+        await client.aclose()
+
+    result = {**empty, "available": True}
+    for key, value in raw.items():
+        count = int(value)
+        if key.startswith("language:"):
+            result["languages"][key.removeprefix("language:")] = count
+        elif key.startswith("detector:"):
+            result["detectors"][key.removeprefix("detector:")] = count
+        elif key.startswith("reason:"):
+            result["reasons"][key.removeprefix("reason:")] = count
+        elif key in {"processed", "accepted", "rejected"}:
+            result[key] = count
+    return result
 
 
 @app.get("/api/messages/stream")

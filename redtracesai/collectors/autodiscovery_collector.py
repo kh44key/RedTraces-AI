@@ -24,6 +24,7 @@ from common.models import CollectedMessage
 from common.noise import evaluate_message
 
 GOOGLE_CSE_ENDPOINT = "https://customsearch.googleapis.com/customsearch/v1"
+SERPER_SEARCH_ENDPOINT = "https://google.serper.dev/search"
 DEFAULT_QUERIES = (
     '("ransomware" OR "malware") '
     '("indicators of compromise" OR "IOC") filetype:pdf'
@@ -146,6 +147,76 @@ class GoogleCSEProvider(DiscoveryProvider):
         return results
 
 
+class SerperProvider(DiscoveryProvider):
+    """Serper Google Search API provider for public CTI result discovery."""
+
+    name = "serper"
+
+    def __init__(self, api_key: str, session: Session | None = None) -> None:
+        self.api_key = api_key
+        self.session = session or requests.Session()
+        self.timeout = float(os.getenv("AUTODISCOVERY_REQUEST_TIMEOUT_SECONDS", "30"))
+        self.retry_attempts = int(os.getenv("AUTODISCOVERY_RETRY_ATTEMPTS", "4"))
+
+    def _request_page(self, query: str, number: int) -> dict[str, Any]:
+        for attempt in range(self.retry_attempts):
+            try:
+                response = self.session.post(
+                    SERPER_SEARCH_ENDPOINT,
+                    headers={"X-API-KEY": self.api_key},
+                    json={"q": query, "num": number, "autocorrect": False},
+                    timeout=self.timeout,
+                )
+                if response.status_code == 429 or response.status_code >= 500:
+                    response.raise_for_status()
+                if 400 <= response.status_code < 500:
+                    raise RuntimeError(
+                        f"Serper rejected the request with HTTP {response.status_code}"
+                    )
+                payload = response.json()
+                return payload if isinstance(payload, dict) else {}
+            except (requests.RequestException, ValueError) as error:
+                if attempt == self.retry_attempts - 1:
+                    raise RuntimeError("Serper request failed") from error
+                delay = min(2**attempt, 30)
+                log.warning(
+                    "autodiscovery_search_retry",
+                    provider=self.name,
+                    attempt=attempt + 1,
+                    delay_seconds=delay,
+                    error=str(error),
+                )
+                time.sleep(delay)
+        return {}
+
+    def search(self, query: str, limit: int) -> list[DiscoveryResult]:
+        payload = self._request_page(query, limit)
+        items = payload.get("organic")
+        if not isinstance(items, list):
+            return []
+
+        results: list[DiscoveryResult] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            link = str(item.get("link") or "").strip()
+            parsed = urlparse(link)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                continue
+            results.append(
+                DiscoveryResult(
+                    title=str(item.get("title") or "").strip(),
+                    snippet=str(item.get("snippet") or "").strip(),
+                    url=link,
+                    display_link=parsed.hostname,
+                    rank=int(item.get("position") or len(results) + 1),
+                )
+            )
+            if len(results) >= limit:
+                break
+        return results
+
+
 InsertFunction = Callable[[str, DiscoveryResult], Awaitable[bool]]
 
 
@@ -168,13 +239,15 @@ def configured_queries() -> list[str]:
 
 def build_provider() -> DiscoveryProvider:
     provider_name = os.getenv("AUTODISCOVERY_PROVIDER", "google_cse").strip().lower()
-    if provider_name != "google_cse":
-        raise RuntimeError(
-            "Unsupported AUTODISCOVERY_PROVIDER; currently supported: google_cse"
+    if provider_name == "google_cse":
+        return GoogleCSEProvider(
+            required_env("GOOGLE_CSE_API_KEY"),
+            required_env("GOOGLE_CSE_ID"),
         )
-    return GoogleCSEProvider(
-        required_env("GOOGLE_CSE_API_KEY"),
-        required_env("GOOGLE_CSE_ID"),
+    if provider_name == "serper":
+        return SerperProvider(required_env("SERPER_API_KEY"))
+    raise RuntimeError(
+        "Unsupported AUTODISCOVERY_PROVIDER; supported: google_cse, serper"
     )
 
 

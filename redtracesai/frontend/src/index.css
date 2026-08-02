@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,7 @@
 
 :root {
   color-scheme: light;
-  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -24,7 +24,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100%;
-  background: #e9ecea;
+  background: #f8f4f4;
 }
 
 button,
@@ -38,13 +38,13 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid rgba(22, 116, 73, 0.45);
+  outline: 2px solid rgba(193, 18, 31, 0.45);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgba(22, 116, 73, 0.16);
-  color: #10231a;
+  background: rgba(193, 18, 31, 0.16);
+  color: #2b1115;
 }
 
 ::-webkit-scrollbar {
@@ -57,7 +57,7 @@ input:focus-visible {
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: #d7ded9;
+  background: #e7c9ce;
 }
 
 /* The first dashboard pass used display-size typography. Increase the small
@@ -232,20 +232,20 @@ html.dark ::-webkit-scrollbar-thumb {
 
 @layer components {
   .nav-item {
-    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[11px] font-medium text-[#829087] transition hover:bg-[#f1f4f2] hover:text-[#294137];
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[11px] font-medium text-[#8d777b] transition hover:bg-[#fff1f2] hover:text-[#4a2027];
   }
 
   .nav-item-active {
-    @apply relative bg-[#edf6f1] font-semibold text-[#167449];
+    @apply relative bg-[#fff1f2] font-semibold text-[#c1121f];
   }
 
   .nav-item-active::before {
     content: "";
-    @apply absolute -left-4 h-7 w-1 rounded-r-full bg-[#167449];
+    @apply absolute -left-4 h-7 w-1 rounded-r-full bg-[#c1121f];
   }
 
   .channel-button {
-    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[9px] text-[#87948c] transition hover:bg-[#f1f4f2] hover:text-[#3d5146];
+    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[9px] text-[#927b7f] transition hover:bg-[#fff1f2] hover:text-[#4a2027];
   }
 
   .channel-button span:last-child {
@@ -253,20 +253,20 @@ html.dark ::-webkit-scrollbar-thumb {
   }
 
   .channel-active {
-    @apply bg-[#edf6f1] font-semibold text-[#167449];
+    @apply bg-[#fff1f2] font-semibold text-[#c1121f];
   }
 }
 
 html.dark .nav-item:hover,
 html.dark .channel-button:hover {
-  background: #17251e;
-  color: #dce8e1;
+  background: #2a151a;
+  color: #fee2e2;
 }
 
 html.dark .nav-item-active,
 html.dark .channel-active {
-  background: #143426;
-  color: #5ed69b;
+  background: #3b121b;
+  color: #fb7185;
 }
 
 @media (prefers-reduced-motion: reduce) {

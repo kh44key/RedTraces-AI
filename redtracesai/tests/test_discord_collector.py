@@ -6,7 +6,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from collectors.discord_collector import configured_channel_ids
+from collectors.discord_collector import configured_channel_ids, configured_channel_keywords
 
 
 class DiscordConfigurationTest(unittest.TestCase):
@@ -31,6 +31,17 @@ class DiscordConfigurationTest(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "numeric"):
                 configured_channel_ids()
+
+    def test_parses_and_deduplicates_discovery_keywords(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"DISCORD_CHANNEL_KEYWORDS": "CTI, malware,cti, zero-day"},
+            clear=False,
+        ):
+            self.assertEqual(
+                configured_channel_keywords(),
+                ("cti", "malware", "zero-day"),
+            )
 
 
 if __name__ == "__main__":
