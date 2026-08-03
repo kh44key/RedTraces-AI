@@ -244,6 +244,127 @@ audit, preprocessing version, and SHA-256 are stored under
 Layer 4 regex IOC extraction consumes the Layer 3 normalized text. The next new
 layer to build is the NLP extraction stage.
 
+## STIX 2.1 export
+
+`common.ioc_normalizer` flattens the grouped `metadata.iocs` structure into
+canonical provenance-aware IOC records. `common.stix_generator` converts each
+record into a STIX 2.1 Indicator, creates one source Identity per
+platform/source pair, and adds an `indicates` Relationship for provenance. The
+Indicator also carries `created_by_ref` and `x_redtraces_*` provenance fields.
+
+Bundles are validated with the `stix2` built-in validator before being written
+atomically to `/output/stix_bundles/{timestamp}.json`. The API service maps that
+container path to the local `output/` directory.
+
+Generate a bundle from a JSON array of normalized records:
+
+```bash
+docker compose run --rm api python -m scripts.generate_stix /app/records.json
+```
+
+Each input item has this shape:
+
+```json
+{
+  "ioc_type": "ipv4",
+  "value": "1.2.3.4",
+  "platform": "telegram",
+  "source": "falconfeedsio",
+  "source_url": "https://t.me/falconfeedsio/7",
+  "message_id": "7",
+  "confidence": 50
+}
+```
+
+## Persistent STIX IOC store
+
+`common.stix_store.STIXStore` ingests validated generated bundles into SQLite
+at `/output/stix_store.sqlite3`. The `iocs` table has a unique constraint on
+`(ioc_value, ioc_type)`. A first observation inserts the IOC; later observations
+update `last_seen`, the latest source and raw bundle, and atomically increment
+`sighting_count` instead of creating duplicate rows. `first_seen` and the
+original `stix_id` remain unchanged.
+
+Ingest a generated bundle:
+
+```bash
+docker compose run --rm api python -m scripts.ingest_stix \
+  /output/stix_bundles/20260802T150200.123456Z.json
+```
+
+Inspect the local store:
+
+```bash
+docker compose run --rm api python -c \
+  "import sqlite3; db=sqlite3.connect('/output/stix_store.sqlite3'); print(db.execute('SELECT ioc_type, ioc_value, sighting_count, first_seen, last_seen FROM iocs').fetchall())"
+```
+
+## Sigma rule generation
+
+`common.sigma_rule_generator` reads network IOCs from the SQLite STIX store and
+batches them into one Sigma rule per group: IP addresses, domains, and URLs.
+IPv4 and IPv6 values use `destination.ip` with firewall logs, domains use
+`dns.query.name` with DNS logs, and URL hostnames use `url.domain` with proxy
+logs. SHA hashes and other non-network indicators are intentionally excluded.
+
+Rules default to `medium`; a batch becomes `high` when a matching stored STIX
+Indicator carries confidence 75 or greater. Existing `attack.*` or
+`mitre-attack.*` labels are copied to Sigma tags. Rules are written atomically
+as YAML documents to `/output/sigma_rules/{date}.yml`.
+
+```bash
+docker compose run --rm api python -m scripts.sigma_rule_generator
+```
+
+## YARA rule generation
+
+`common.yara_rule_generator` reads MD5, SHA-1, and SHA-256 IOCs from the SQLite
+STIX store and writes one exact-file hash rule block per IOC into a dated YARA
+file. Each block is compiled independently with `yara-python`; invalid blocks
+are discarded. The combined artifact is compiled once more before an atomic
+write to `/output/yara_rules/{date}.yar`.
+
+Hash-only detection is explicitly documented in the generated file as a v1
+limitation because even a small file change bypasses an exact hash. The module
+keeps rule rendering separate from loading and saving so strings, byte
+patterns, PE structure, and behavioral conditions can be added later.
+
+```bash
+docker compose run --rm api python -m scripts.yara_rule_generator
+```
+
+## SIEM deployment
+
+`common.siem_pusher` selects Splunk, Elastic Security, Wazuh Indexer, or QRadar
+through `SIEM_TYPE`. Sigma documents are converted through the matching
+pySigma backend and submitted through provider-specific REST payloads. Every
+success, failure, or manual-deployment result is stored in the local SQLite
+`siem_push_log` table.
+
+Splunk creates a scheduled saved search. Elastic creates a disabled-by-default
+Detection Engine query rule. Wazuh creates a disabled-by-default OpenSearch
+Alerting monitor on the configured Wazuh Indexer. QRadar AQL conversion is
+available through the dynamically loaded optional legacy backend, but that
+backend conflicts with current pySigma and should run in an isolated adapter
+service. An approved integration endpoint must also be supplied through
+`SIEM_RULE_ENDPOINT` because QRadar has no universal correlation-rule creation
+endpoint. Without both, the attempt is logged as `manual_required`. YARA is
+uploaded only when `SIEM_YARA_ENDPOINT` is explicitly set;
+otherwise the artifact is safely logged as `manual_required`.
+
+Configure `.env` and push a generated file:
+
+```bash
+docker compose run --rm api python -m scripts.siem_pusher \
+  /output/sigma_rules/2026-08-02.yml --type sigma
+
+docker compose run --rm api python -m scripts.siem_pusher \
+  /output/yara_rules/2026-08-02.yar --type yara
+```
+
+Rules default to disabled until reviewed. Set `SIEM_RULES_ENABLED=true` only
+after testing the generated native query against the target telemetry schema.
+
 ## IOC extraction
 
 Every collector extracts and normalizes SHA-256, SHA-1, MD5, URLs, IPv4,

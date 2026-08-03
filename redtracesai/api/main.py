@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query, Request
@@ -18,6 +20,12 @@ from sqlalchemy import func, or_, select
 
 from common.db import AsyncSessionFactory, engine, init_db
 from common.models import CollectedMessage
+
+
+OUTPUT_DIRECTORY = Path(os.getenv("OUTPUT_DIRECTORY", "/output"))
+STIX_STORE_PATH = Path(
+    os.getenv("STIX_STORE_PATH", str(OUTPUT_DIRECTORY / "stix_store.sqlite3"))
+)
 
 
 def serialize_message(message: CollectedMessage) -> dict[str, Any]:
@@ -162,6 +170,95 @@ async def layer2_metrics() -> dict[str, Any]:
         elif key in {"processed", "accepted", "rejected"}:
             result[key] = count
     return result
+
+
+def _sqlite_items(query: str, parameters: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    if not STIX_STORE_PATH.is_file():
+        return []
+    connection = sqlite3.connect(STIX_STORE_PATH)
+    connection.row_factory = sqlite3.Row
+    try:
+        return [dict(row) for row in connection.execute(query, parameters).fetchall()]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        connection.close()
+
+
+@app.get("/api/intelligence/iocs")
+async def intelligence_iocs(
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    """Expose normalized STIX-store IOCs without returning large raw bundles."""
+    rows = await asyncio.to_thread(
+        _sqlite_items,
+        """
+        SELECT stix_id, ioc_value, ioc_type, source_id,
+               first_seen, last_seen, sighting_count
+        FROM iocs
+        ORDER BY last_seen DESC, ioc_type, ioc_value
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
+    )
+    count_rows = await asyncio.to_thread(
+        _sqlite_items, "SELECT COUNT(*) AS total FROM iocs"
+    )
+    return {
+        "items": rows,
+        "total": int(count_rows[0]["total"]) if count_rows else 0,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@app.get("/api/artifacts")
+async def artifacts() -> dict[str, list[dict[str, Any]]]:
+    """List generated STIX, Sigma, and YARA artifacts from fixed output paths."""
+    definitions = (
+        ("stix", OUTPUT_DIRECTORY / "stix_bundles", "*.json", "validated bundle"),
+        ("sigma", OUTPUT_DIRECTORY / "sigma_rules", "*.yml", "generated Sigma YAML"),
+        ("yara", OUTPUT_DIRECTORY / "yara_rules", "*.yar", "compiled YARA file"),
+    )
+    items: list[dict[str, Any]] = []
+    for artifact_type, directory, pattern, status in definitions:
+        if not directory.is_dir():
+            continue
+        for path in directory.glob(pattern):
+            details = path.stat()
+            items.append(
+                {
+                    "name": path.name,
+                    "artifact_type": artifact_type,
+                    "size_bytes": details.st_size,
+                    "modified_at": datetime.fromtimestamp(
+                        details.st_mtime, tz=timezone.utc
+                    ).isoformat(),
+                    "status": status,
+                }
+            )
+    items.sort(key=lambda item: item["modified_at"], reverse=True)
+    return {"items": items}
+
+
+@app.get("/api/siem/push-log")
+async def siem_push_log(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, list[dict[str, Any]]]:
+    """Return the local SIEM deployment audit without exposing credentials."""
+    rows = await asyncio.to_thread(
+        _sqlite_items,
+        """
+        SELECT id, attempted_at, siem_type, artifact_type, artifact_id,
+               status, endpoint, response_code, message
+        FROM siem_push_log
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    return {"items": rows}
 
 
 @app.get("/api/messages/stream")

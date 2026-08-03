@@ -4,16 +4,20 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   Bell,
+  Boxes,
   ChevronDown,
   ChevronRight,
   CircleDot,
   Clock3,
   Database,
+  FileCode2,
+  GitBranch,
   Hash,
   LayoutDashboard,
   LifeBuoy,
   Radio,
   Search,
+  Send,
   ServerCrash,
   Settings,
   ShieldCheck,
@@ -22,7 +26,17 @@ import {
   UsersRound,
   Wifi,
 } from "lucide-react";
+import { IntelligenceWorkspace, ManualRuleBuilder, SettingsWorkspace, type IntelligenceView } from "./IntelligenceViews";
+import { DEMO_PENDING_RULES, DEMO_SCORED_IOCS } from "./advancedDemoData";
 import { DEMO_MESSAGES, DEMO_STATS } from "./mockData";
+import {
+  DEMO_ARTIFACTS,
+  DEMO_PUSH_LOG,
+  DEMO_STORED_IOCS,
+  type RuleArtifact,
+  type SIEMPush,
+  type StoredIOC,
+} from "./featureDemoData";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(
   /\/$/,
@@ -76,7 +90,16 @@ type Layer2Metrics = {
 };
 
 type IOC = { type: string; value: string };
-type WorkspaceView = "dashboard" | "signals" | "iocs" | "sources";
+type WorkspaceView =
+  | "dashboard"
+  | "signals"
+  | "iocs"
+  | "stix"
+  | "rules"
+  | "deployments"
+  | "sources"
+  | "settings"
+  | IntelligenceView;
 
 const IOC_LABELS: Record<string, string> = {
   sha256: "SHA-256",
@@ -388,6 +411,25 @@ export default function App() {
     enabled: !DEMO_MODE,
   });
 
+  const storedIocsQuery = useQuery({
+    queryKey: ["intelligence", "iocs"],
+    queryFn: () => getJson<{ items: StoredIOC[]; total: number }>("/api/intelligence/iocs?limit=250"),
+    enabled: !DEMO_MODE,
+  });
+
+  const artifactsQuery = useQuery({
+    queryKey: ["artifacts"],
+    queryFn: () => getJson<{ items: RuleArtifact[] }>("/api/artifacts"),
+    enabled: !DEMO_MODE,
+  });
+
+  const pushLogQuery = useQuery({
+    queryKey: ["siem", "push-log"],
+    queryFn: () => getJson<{ items: SIEMPush[] }>("/api/siem/push-log?limit=100"),
+    refetchInterval: 15_000,
+    enabled: !DEMO_MODE,
+  });
+
   useEffect(() => {
     const timer = window.setInterval(() => setClock((value) => value + 1), 30_000);
     return () => window.clearInterval(timer);
@@ -416,8 +458,23 @@ export default function App() {
     return () => stream.close();
   }, [queryClient]);
 
+  useEffect(() => {
+    if (!DEMO_MODE) return;
+    let index = 0;
+    const timer = window.setInterval(() => {
+      const seed = DEMO_MESSAGES[index % DEMO_MESSAGES.length] as Message;
+      const now = new Date().toISOString();
+      setLiveMessages((current) => [
+        { ...seed, id: `demo-live-${Date.now()}`, collected_at: now, posted_at: now, metadata: { ...seed.metadata, simulated_live: true } },
+        ...current,
+      ].slice(0, 10));
+      index += 1;
+    }, 12_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const messages = useMemo(() => {
-    if (DEMO_MODE) return DEMO_MESSAGES as Message[];
+    if (DEMO_MODE) return [...liveMessages, ...(DEMO_MESSAGES as Message[])];
     const historical = history.data?.pages.flatMap((page) => page.items) ?? [];
     const seen = new Set<string>();
     return [...liveMessages, ...historical].filter((message) => {
@@ -428,6 +485,17 @@ export default function App() {
   }, [history.data, liveMessages]);
 
   const displayedStats = DEMO_MODE ? DEMO_STATS : stats.data;
+  const storedIocs = DEMO_MODE
+    ? DEMO_STORED_IOCS
+    : storedIocsQuery.data?.items ?? [];
+  const artifacts = DEMO_MODE
+    ? DEMO_ARTIFACTS
+    : artifactsQuery.data?.items ?? [];
+  const pushLog = DEMO_MODE
+    ? DEMO_PUSH_LOG
+    : pushLogQuery.data?.items ?? [];
+  const stixArtifacts = artifacts.filter((artifact) => artifact.artifact_type === "stix");
+  const ruleArtifacts = artifacts.filter((artifact) => artifact.artifact_type !== "stix");
   const channels = useMemo(
     () => [...new Set(messages.map((message) => message.source))].sort(),
     [messages],
@@ -512,6 +580,28 @@ export default function App() {
       source.source.toLowerCase().includes(normalizedSearch) ||
       source.platform.toLowerCase().includes(normalizedSearch),
   );
+  const visibleStoredIocs = storedIocs.filter(
+    (ioc) =>
+      !normalizedSearch ||
+      ioc.ioc_value.toLowerCase().includes(normalizedSearch) ||
+      ioc.ioc_type.toLowerCase().includes(normalizedSearch) ||
+      (ioc.source_id || "").toLowerCase().includes(normalizedSearch),
+  );
+  const visibleRuleArtifacts = ruleArtifacts.filter(
+    (artifact) =>
+      !normalizedSearch ||
+      artifact.name.toLowerCase().includes(normalizedSearch) ||
+      artifact.artifact_type.toLowerCase().includes(normalizedSearch) ||
+      artifact.status.toLowerCase().includes(normalizedSearch),
+  );
+  const visiblePushLog = pushLog.filter(
+    (entry) =>
+      !normalizedSearch ||
+      entry.siem_type.toLowerCase().includes(normalizedSearch) ||
+      entry.artifact_type.toLowerCase().includes(normalizedSearch) ||
+      entry.status.toLowerCase().includes(normalizedSearch) ||
+      entry.message.toLowerCase().includes(normalizedSearch),
+  );
 
   return (
     <div className="red-theme min-h-screen bg-[#f8f4f4] p-2 text-[#2b1115] sm:p-4">
@@ -554,11 +644,37 @@ export default function App() {
               onClick={() => setWorkspaceView("iocs")}
             />
             <NavItem
+              icon={Boxes}
+              label="STIX store"
+              count={storedIocs.length}
+              active={workspaceView === "stix"}
+              onClick={() => setWorkspaceView("stix")}
+            />
+            <NavItem
+              icon={FileCode2}
+              label="Rule library"
+              count={ruleArtifacts.length}
+              active={workspaceView === "rules"}
+              onClick={() => setWorkspaceView("rules")}
+            />
+            <NavItem
+              icon={Send}
+              label="SIEM deployments"
+              count={pushLog.length}
+              active={workspaceView === "deployments"}
+              onClick={() => setWorkspaceView("deployments")}
+            />
+            <NavItem
               icon={Database}
               label="Sources"
               active={workspaceView === "sources"}
               onClick={() => setWorkspaceView("sources")}
             />
+            <NavItem icon={Activity} label="Confidence feed" count={DEMO_SCORED_IOCS.length} active={workspaceView === "confidence"} onClick={() => setWorkspaceView("confidence")} />
+            <NavItem icon={ShieldCheck} label="ATT&CK heatmap" active={workspaceView === "attack"} onClick={() => setWorkspaceView("attack")} />
+            <NavItem icon={GitBranch} label="Campaign graph" active={workspaceView === "campaigns"} onClick={() => setWorkspaceView("campaigns")} />
+            <NavItem icon={Clock3} label="Review queue" count={DEMO_PENDING_RULES.length} active={workspaceView === "review"} onClick={() => setWorkspaceView("review")} />
+            <NavItem icon={FileCode2} label="Weekly report" active={workspaceView === "report"} onClick={() => setWorkspaceView("report")} />
           </nav>
 
           <p className="mb-2 mt-8 px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#b99da1]">
@@ -601,7 +717,7 @@ export default function App() {
                 <div className="h-full w-[78%] rounded-full bg-[#fb7185]" />
               </div>
             </div>
-            <NavItem icon={Settings} label="Settings" />
+            <NavItem icon={Settings} label="Settings" active={workspaceView === "settings"} onClick={() => setWorkspaceView("settings")} />
             <NavItem icon={LifeBuoy} label="Help center" />
           </div>
         </aside>
@@ -653,6 +769,37 @@ export default function App() {
               </div>
             </div>
           </header>
+
+          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden" aria-label="Workspace views">
+            {[
+              ["dashboard", "Dashboard"],
+              ["signals", "Signals"],
+              ["iocs", "IOCs"],
+              ["stix", "STIX"],
+              ["rules", "Rules"],
+              ["deployments", "Deployments"],
+              ["sources", "Sources"],
+              ["confidence", "Confidence"],
+              ["attack", "ATT&CK"],
+              ["campaigns", "Campaigns"],
+              ["review", "Review queue"],
+              ["report", "Weekly report"],
+              ["settings", "Settings"],
+            ].map(([view, label]) => (
+              <button
+                type="button"
+                key={view}
+                onClick={() => setWorkspaceView(view as WorkspaceView)}
+                className={`shrink-0 rounded-xl px-3 py-2 text-[9px] font-semibold transition ${
+                  workspaceView === view
+                    ? "bg-[#167449] text-white"
+                    : "border border-[#edf0ee] bg-white text-[#65746c]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
 
           {workspaceView === "dashboard" && (
           <main className="px-1 pb-3 pt-6 sm:px-2">
@@ -757,6 +904,39 @@ export default function App() {
                 <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
                   Spam model: test-only until CTI-labelled training data is approved
                 </span>
+              </div>
+            </section>
+
+            <section className="mt-3 rounded-[22px] border border-[#edf0ee] bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-[14px] font-semibold">Intelligence automation pipeline</h2>
+                  <p className="mt-1 text-[10px] text-[#91a098]">
+                    From collected content to deployment-ready detections
+                  </p>
+                </div>
+                <span className="rounded-lg bg-[#edf7f1] px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.1em] text-[#167449]">
+                  End-to-end ready
+                </span>
+              </div>
+              <div className="mt-5 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                {[
+                  ["01", "Collect", `${messages.length} signals`],
+                  ["02", "Extract", `${allIocs.length} IOCs`],
+                  ["03", "STIX 2.1", `${stixArtifacts.length} bundles`],
+                  ["04", "IOC store", `${storedIocs.length} unique`],
+                  ["05", "Rules", `${ruleArtifacts.length} artifacts`],
+                  ["06", "Deploy", `${pushLog.length} attempts`],
+                ].map(([number, label, detail], index) => (
+                  <div key={number} className="relative rounded-2xl border border-[#e7ebe8] bg-[#f8faf9] p-4">
+                    <p className="font-mono text-[8px] font-semibold text-[#167449]">{number}</p>
+                    <p className="mt-3 text-[11px] font-semibold text-[#425149]">{label}</p>
+                    <p className="mt-1 text-[8px] text-[#91a098]">{detail}</p>
+                    {index < 5 && (
+                      <ChevronRight className="absolute -right-2.5 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white text-[#a3ada7] xl:block" size={18} />
+                    )}
+                  </div>
+                ))}
               </div>
             </section>
 
@@ -1045,6 +1225,252 @@ export default function App() {
             </main>
           )}
 
+          {workspaceView === "stix" && (
+            <main className="px-1 pb-3 pt-6 sm:px-2">
+              <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#167449]">
+                    Intelligence exchange
+                  </p>
+                  <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.045em]">
+                    STIX store
+                  </h1>
+                  <p className="mt-1 text-[11px] text-[#85938b]">
+                    Normalized indicators, provenance and cross-source sightings.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-xl border border-[#dfe5e1] bg-white px-3 py-2 text-[10px] font-semibold text-[#506057]">
+                  <GitBranch size={14} className="text-[#167449]" />
+                  STIX 2.1 · SQLite persistent
+                </span>
+              </div>
+
+              <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                <StatCard
+                  label="Stored indicators"
+                  value={storedIocs.length}
+                  detail="Unique type + value records"
+                  icon={Boxes}
+                  primary
+                />
+                <StatCard
+                  label="Total sightings"
+                  value={storedIocs.reduce((sum, item) => sum + item.sighting_count, 0)}
+                  detail="Repeated observations included"
+                  icon={Activity}
+                />
+                <StatCard
+                  label="STIX bundles"
+                  value={stixArtifacts.length}
+                  detail="Validated collection exports"
+                  icon={Database}
+                />
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-12">
+                <section className="overflow-hidden rounded-[22px] border border-[#edf0ee] bg-white xl:col-span-9">
+                  <div className="grid grid-cols-[90px_minmax(230px,1fr)_90px_130px_100px] gap-3 border-b border-[#edf0ee] bg-[#f8faf9] px-5 py-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8a9890]">
+                    <span>Type</span>
+                    <span>Value</span>
+                    <span>Sightings</span>
+                    <span>STIX identity</span>
+                    <span>Last seen</span>
+                  </div>
+                  <div className="max-h-[620px] overflow-auto">
+                    {visibleStoredIocs.map((ioc) => (
+                      <div
+                        key={`${ioc.ioc_type}:${ioc.ioc_value}`}
+                        className="grid grid-cols-[90px_minmax(230px,1fr)_90px_130px_100px] items-center gap-3 border-b border-[#f0f2f1] px-5 py-4 last:border-b-0"
+                      >
+                        <span className="w-fit rounded-md bg-[#edf7f1] px-2 py-1 text-[8px] font-semibold uppercase text-[#167449]">
+                          {ioc.ioc_type}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="break-all font-mono text-[10px] text-[#425149]">
+                            {ioc.ioc_value}
+                          </p>
+                          <p className="mt-1 truncate font-mono text-[8px] text-[#98a39d]">
+                            {ioc.stix_id}
+                          </p>
+                        </div>
+                        <span className="w-fit rounded-lg bg-[#fff5d9] px-2.5 py-1 font-mono text-[10px] font-semibold text-[#9b6b00]">
+                          {ioc.sighting_count}×
+                        </span>
+                        <span className="truncate font-mono text-[8px] text-[#87958d]">
+                          {ioc.source_id || "unknown"}
+                        </span>
+                        <span className="text-[9px] text-[#93a098]">
+                          {relativeTime(ioc.last_seen)}
+                        </span>
+                      </div>
+                    ))}
+                    {visibleStoredIocs.length === 0 && (
+                      <div className="grid min-h-52 place-items-center text-[11px] text-[#87958d]">
+                        No stored STIX indicators match this view.
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <aside className="space-y-3 xl:col-span-3">
+                  <section className="rounded-[22px] border border-[#edf0ee] bg-white p-5">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#167449]">
+                      Processing chain
+                    </p>
+                    <div className="mt-4 space-y-1">
+                      {["Normalize IOC", "Create Indicator", "Attach Identity", "Validate bundle", "Upsert sighting"].map((step, index) => (
+                        <div key={step} className="flex items-center gap-3 py-2">
+                          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#edf7f1] font-mono text-[9px] font-semibold text-[#167449]">
+                            {index + 1}
+                          </span>
+                          <span className="text-[10px] font-medium text-[#506057]">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  {stixArtifacts.slice(0, 3).map((artifact) => (
+                    <section key={artifact.name} className="rounded-[18px] border border-[#edf0ee] bg-white p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e8f4ff] text-[#1876a8]">
+                          <Boxes size={15} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-mono text-[9px] font-semibold text-[#425149]">{artifact.name}</p>
+                          <p className="mt-1 text-[8px] text-[#91a098]">{artifact.status} · {(artifact.size_bytes / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                    </section>
+                  ))}
+                </aside>
+              </div>
+            </main>
+          )}
+
+          {workspaceView === "rules" && (
+            <main className="px-1 pb-3 pt-6 sm:px-2">
+              <div className="mb-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#167449]">
+                  Detection engineering
+                </p>
+                <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.045em]">
+                  Rule library
+                </h1>
+                <p className="mt-1 text-[11px] text-[#85938b]">
+                  Generated Sigma and YARA artifacts ready for review and deployment.
+                </p>
+              </div>
+
+              <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                <StatCard label="Rule artifacts" value={ruleArtifacts.length} detail="Dated generated files" icon={FileCode2} primary />
+                <StatCard label="Sigma files" value={ruleArtifacts.filter((item) => item.artifact_type === "sigma").length} detail="Network IOC detections" icon={ShieldCheck} />
+                <StatCard label="YARA files" value={ruleArtifacts.filter((item) => item.artifact_type === "yara").length} detail="Compiled hash detections" icon={Hash} />
+              </div>
+
+              <ManualRuleBuilder />
+              <section className="rounded-[22px] border border-[#edf0ee] bg-white p-5">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {visibleRuleArtifacts.map((artifact) => {
+                    const sigma = artifact.artifact_type === "sigma";
+                    return (
+                      <article key={`${artifact.artifact_type}:${artifact.name}`} className="rounded-[18px] border border-[#e7ebe8] bg-[#f8faf9] p-5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(31,52,40,0.07)]">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className={`grid h-11 w-11 place-items-center rounded-2xl ${sigma ? "bg-[#e8f4ff] text-[#1876a8]" : "bg-[#f2ecf8] text-[#70459a]"}`}>
+                            {sigma ? <ShieldCheck size={18} /> : <FileCode2 size={18} />}
+                          </span>
+                          <span className="rounded-md bg-[#edf7f1] px-2 py-1 text-[8px] font-semibold uppercase text-[#167449]">
+                            validated
+                          </span>
+                        </div>
+                        <p className="mt-5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#91a098]">
+                          {sigma ? "Sigma · SIEM query" : "YARA · malware detection"}
+                        </p>
+                        <h2 className="mt-2 truncate font-mono text-[12px] font-semibold text-[#425149]">{artifact.name}</h2>
+                        <p className="mt-2 text-[10px] text-[#789086]">{artifact.status}</p>
+                        <div className="mt-5 flex items-center justify-between border-t border-[#e7ebe8] pt-4 text-[9px] text-[#91a098]">
+                          <span>{(artifact.size_bytes / 1024).toFixed(1)} KB</span>
+                          <span>{relativeTime(artifact.modified_at)}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+                {visibleRuleArtifacts.length === 0 && (
+                  <div className="grid min-h-52 place-items-center text-[11px] text-[#87958d]">
+                    No rule artifacts generated yet.
+                  </div>
+                )}
+              </section>
+            </main>
+          )}
+
+          {workspaceView === "deployments" && (
+            <main className="px-1 pb-3 pt-6 sm:px-2">
+              <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#167449]">
+                    Detection delivery
+                  </p>
+                  <h1 className="mt-1 text-[30px] font-semibold tracking-[-0.045em]">
+                    SIEM deployments
+                  </h1>
+                  <p className="mt-1 text-[11px] text-[#85938b]">
+                    Provider conversion, REST delivery and manual deployment audit.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-xl bg-[#edf7f1] px-3 py-2 text-[10px] font-semibold text-[#167449]">
+                  <Send size={14} />
+                  {pushLog.filter((item) => item.status === "success").length} successful pushes
+                </span>
+              </div>
+
+              <div className="mb-3 grid gap-3 sm:grid-cols-3">
+                <StatCard label="Push attempts" value={pushLog.length} detail="All audited operations" icon={Send} primary />
+                <StatCard label="Successful" value={pushLog.filter((item) => item.status === "success").length} detail="REST deployment accepted" icon={ShieldCheck} />
+                <StatCard label="Manual queue" value={pushLog.filter((item) => item.status === "manual_required").length} detail="Analyst action required" icon={Clock3} />
+              </div>
+
+              <section className="overflow-hidden rounded-[22px] border border-[#edf0ee] bg-white">
+                <div className="grid grid-cols-[100px_90px_120px_minmax(240px,1fr)_90px] gap-3 border-b border-[#edf0ee] bg-[#f8faf9] px-5 py-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8a9890]">
+                  <span>Provider</span>
+                  <span>Artifact</span>
+                  <span>Status</span>
+                  <span>Result</span>
+                  <span>Attempted</span>
+                </div>
+                <div className="max-h-[620px] overflow-auto">
+                  {visiblePushLog.map((entry) => {
+                    const statusStyle = entry.status === "success"
+                      ? "bg-[#edf7f1] text-[#167449]"
+                      : entry.status === "failure"
+                        ? "bg-[#fff0e9] text-[#c64b18]"
+                        : "bg-[#fff5d9] text-[#9b6b00]";
+                    return (
+                      <div key={entry.id} className="grid grid-cols-[100px_90px_120px_minmax(240px,1fr)_90px] items-center gap-3 border-b border-[#f0f2f1] px-5 py-4 last:border-b-0">
+                        <span className="font-semibold capitalize text-[10px] text-[#425149]">{entry.siem_type}</span>
+                        <span className="font-mono text-[9px] uppercase text-[#65746c]">{entry.artifact_type}</span>
+                        <span className={`w-fit rounded-md px-2 py-1 text-[8px] font-semibold uppercase ${statusStyle}`}>
+                          {entry.status.replace("_", " ")}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[10px] text-[#536259]">{entry.message}</p>
+                          <p className="mt-1 truncate font-mono text-[8px] text-[#98a39d]">
+                            {entry.endpoint || "No automated endpoint"}{entry.response_code ? ` · HTTP ${entry.response_code}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-[9px] text-[#93a098]">{relativeTime(entry.attempted_at)}</span>
+                      </div>
+                    );
+                  })}
+                  {visiblePushLog.length === 0 && (
+                    <div className="grid min-h-52 place-items-center text-[11px] text-[#87958d]">
+                      No SIEM deployment attempts recorded.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </main>
+          )}
+
           {workspaceView === "sources" && (
             <main className="px-1 pb-3 pt-6 sm:px-2">
               <div className="mb-5">
@@ -1110,6 +1536,10 @@ export default function App() {
               )}
             </main>
           )}
+          {(["confidence", "attack", "campaigns", "review", "report"] as string[]).includes(workspaceView) && (
+            <IntelligenceWorkspace view={workspaceView as IntelligenceView} />
+          )}
+          {workspaceView === "settings" && <SettingsWorkspace />}
         </div>
       </div>
     </div>

@@ -10,3 +10,9 @@ data/
 models/*.ftz
 models/*.bin
 models/*.joblib
+output/stix_bundles/*.json
+!output/stix_bundles/.gitkeep
+output/sigma_rules/*.yml
+!output/sigma_rules/.gitkeep
+output/yara_rules/*.yar
+!output/yara_rules/.gitkeep

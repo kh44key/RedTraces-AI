@@ -30,10 +30,27 @@ services:
       DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
       FRONTEND_ORIGIN: http://localhost:5173,http://127.0.0.1:5173
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SIEM_TYPE: ${SIEM_TYPE:-}
+      SIEM_URL: ${SIEM_URL:-}
+      SIEM_API_KEY: ${SIEM_API_KEY:-}
+      SIEM_USER: ${SIEM_USER:-}
+      SIEM_PASS: ${SIEM_PASS:-}
+      SIEM_VERIFY_SSL: ${SIEM_VERIFY_SSL:-true}
+      SIEM_TIMEOUT_SECONDS: ${SIEM_TIMEOUT_SECONDS:-30}
+      SIEM_RULE_ENDPOINT: ${SIEM_RULE_ENDPOINT:-}
+      SIEM_YARA_ENDPOINT: ${SIEM_YARA_ENDPOINT:-}
+      SIEM_RULES_ENABLED: ${SIEM_RULES_ENABLED:-false}
+      SIEM_ELASTIC_INDICES: ${SIEM_ELASTIC_INDICES:-logs-*,filebeat-*,packetbeat-*}
+      SIEM_WAZUH_INDEX: ${SIEM_WAZUH_INDEX:-wazuh-alerts-*}
+      SIEM_SPLUNK_OWNER: ${SIEM_SPLUNK_OWNER:-nobody}
+      SIEM_SPLUNK_APP: ${SIEM_SPLUNK_APP:-search}
+      SIEM_SPLUNK_CRON: ${SIEM_SPLUNK_CRON:-*/5 * * * *}
+      SIEM_QRADAR_API_VERSION: ${SIEM_QRADAR_API_VERSION:-24.0}
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+      - ./output:/output
     depends_on:
       postgres:
         condition: service_healthy
@@ -254,7 +271,8 @@ services:
       context: ./frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-      VITE_DEMO_MODE: ${VITE_DEMO_MODE:-false}
+      # Presentation mode: always load the complete synthetic intelligence workspace.
+      VITE_DEMO_MODE: "true"
     ports:
       - "5173:5173"
     restart: unless-stopped
