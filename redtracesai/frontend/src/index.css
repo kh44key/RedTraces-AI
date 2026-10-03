@@ -1,0 +1,281 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background: #f8f4f4;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(193, 18, 31, 0.45);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(193, 18, 31, 0.16);
+  color: #2b1115;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #e7c9ce;
+}
+
+/* The first dashboard pass used display-size typography. Increase the small
+   utility sizes globally while preserving the larger headings and metrics. */
+.text-\[8px\] {
+  font-size: 10px !important;
+}
+
+.text-\[9px\] {
+  font-size: 11px !important;
+}
+
+.text-\[10px\] {
+  font-size: 12px !important;
+}
+
+.text-\[11px\] {
+  font-size: 13px !important;
+}
+
+.text-\[12px\] {
+  font-size: 14px !important;
+}
+
+.text-\[13px\] {
+  font-size: 15px !important;
+}
+
+.text-\[14px\] {
+  font-size: 16px !important;
+}
+
+.text-\[15px\] {
+  font-size: 17px !important;
+}
+
+html.dark body,
+html.dark [class~="bg-[#e9ecea]"] {
+  background: #07100c !important;
+  color: #edf5f0;
+}
+
+html.dark [class~="bg-[#f5f6f5]"] {
+  background: #0c1611 !important;
+}
+
+html.dark [class~="bg-[#fafbfa]"],
+html.dark .bg-white {
+  background: #111d17 !important;
+}
+
+html.dark [class~="bg-[#f8faf9]"],
+html.dark [class~="bg-[#f7f9f8]"],
+html.dark [class~="bg-[#f6f8f7]"],
+html.dark [class~="bg-[#f5f7f6]"],
+html.dark [class~="bg-[#f2f3f2]"],
+html.dark [class~="bg-[#edf1ef]"] {
+  background: #17251e !important;
+}
+
+html.dark [class~="bg-[#edf7f1]"],
+html.dark [class~="bg-[#e9f5ef]"],
+html.dark [class~="bg-[#dff3e8]"],
+html.dark [class~="bg-[#dcefe5]"] {
+  background: #143426 !important;
+}
+
+html.dark [class~="bg-[#e8f4ff]"] {
+  background: #132d3b !important;
+}
+
+html.dark [class~="bg-[#eeefff]"] {
+  background: #252849 !important;
+}
+
+html.dark [class~="bg-[#fff0e9]"] {
+  background: #3a241c !important;
+}
+
+html.dark [class~="bg-[#f2ecf8]"] {
+  background: #30243c !important;
+}
+
+html.dark [class~="bg-[#fff5d9]"] {
+  background: #3a3015 !important;
+}
+
+html.dark [class~="border-[#cfd8d3]"],
+html.dark [class~="border-[#dfe5e1]"],
+html.dark [class~="border-[#e1e6e3]"],
+html.dark [class~="border-[#e5eae7]"],
+html.dark [class~="border-[#e7ebe8]"],
+html.dark [class~="border-[#e8ece9]"],
+html.dark [class~="border-[#edf0ee]"],
+html.dark [class~="border-[#f0f2f1]"] {
+  border-color: #293a31 !important;
+}
+
+html.dark [class~="text-[#142019]"],
+html.dark [class~="text-[#17221c]"],
+html.dark [class~="text-[#425149]"],
+html.dark [class~="text-[#45564c]"],
+html.dark [class~="text-[#506057]"],
+html.dark [class~="text-[#536259]"],
+html.dark [class~="text-[#64746b]"],
+html.dark [class~="text-[#65746c]"],
+html.dark [class~="text-[#68776e]"] {
+  color: #dce8e1 !important;
+}
+
+html.dark [class~="text-[#789086]"],
+html.dark [class~="text-[#7f8e85]"],
+html.dark [class~="text-[#809087]"],
+html.dark [class~="text-[#829087]"],
+html.dark [class~="text-[#85938b]"],
+html.dark [class~="text-[#87948c]"],
+html.dark [class~="text-[#87958d]"],
+html.dark [class~="text-[#8a9890]"],
+html.dark [class~="text-[#8b9991]"],
+html.dark [class~="text-[#8c9992]"],
+html.dark [class~="text-[#91a098]"],
+html.dark [class~="text-[#93a098]"],
+html.dark [class~="text-[#94a098]"],
+html.dark [class~="text-[#96a29b]"],
+html.dark [class~="text-[#98a39d]"],
+html.dark [class~="text-[#9aa49e]"],
+html.dark [class~="text-[#9aa69f]"],
+html.dark [class~="text-[#a3ada7]"],
+html.dark [class~="text-[#a4afa9]"],
+html.dark [class~="text-[#a5afa9]"],
+html.dark [class~="text-[#b5beba]"],
+html.dark [class~="text-[#c1c9c4]"] {
+  color: #91a69a !important;
+}
+
+html.dark [class~="text-[#167449]"] {
+  color: #5ed69b !important;
+}
+
+html.dark [class~="text-[#1876a8]"] {
+  color: #76c7ee !important;
+}
+
+html.dark [class~="text-[#5865c7]"] {
+  color: #a9b0ff !important;
+}
+
+html.dark [class~="text-[#c64b18]"] {
+  color: #ff9a70 !important;
+}
+
+html.dark [class~="text-[#70459a]"] {
+  color: #c69bea !important;
+}
+
+html.dark [class~="text-[#9b6b00]"] {
+  color: #f1c75b !important;
+}
+
+html.dark input {
+  color: #edf5f0;
+}
+
+html.dark ::selection {
+  background: rgba(94, 214, 155, 0.25);
+  color: #f3fff8;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #32463b;
+}
+
+@layer components {
+  .nav-item {
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[11px] font-medium text-[#8d777b] transition hover:bg-[#fff1f2] hover:text-[#4a2027];
+  }
+
+  .nav-item-active {
+    @apply relative bg-[#fff1f2] font-semibold text-[#c1121f];
+  }
+
+  .nav-item-active::before {
+    content: "";
+    @apply absolute -left-4 h-7 w-1 rounded-r-full bg-[#c1121f];
+  }
+
+  .channel-button {
+    @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[9px] text-[#927b7f] transition hover:bg-[#fff1f2] hover:text-[#4a2027];
+  }
+
+  .channel-button span:last-child {
+    @apply font-mono text-[8px];
+  }
+
+  .channel-active {
+    @apply bg-[#fff1f2] font-semibold text-[#c1121f];
+  }
+}
+
+html.dark .nav-item:hover,
+html.dark .channel-button:hover {
+  background: #2a151a;
+  color: #fee2e2;
+}
+
+html.dark .nav-item-active,
+html.dark .channel-active {
+  background: #3b121b;
+  color: #fb7185;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
