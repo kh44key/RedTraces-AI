@@ -1,0 +1,9 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+pydantic==2.11.4
+SQLAlchemy==2.0.40
+https://files.pythonhosted.org/packages/23/1d/8c2c6672094b538f4881f7714e5332fdcddd05a7e196cbc9eb4a9b5e9a45/mysql_connector_python-9.3.0-py2.py3-none-any.whl#sha256=8ab7719d614cf5463521082fab86afc21ada504b538166090e00eeaa1ff729bc
+twscrape==0.17.0
+
+
+telethon==1.40.0

@@ -1,0 +1,12 @@
+# Runtime dependencies for the imported RedTraces Telegram/API path.
+# The complete supplied requirements file remains in redtraces-core for its
+# optional collectors and offline STIX/Sigma/YARA tooling.
+asyncpg>=0.29,<1
+fastapi>=0.115,<1
+PySocks>=1.7,<2
+python-dotenv>=1.0,<2
+redis>=5.0,<7
+SQLAlchemy[asyncio]>=2.0,<3
+structlog>=24.4,<26
+telethon>=1.38,<2
+uvicorn[standard]>=0.30,<1

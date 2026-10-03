@@ -1,0 +1,14 @@
+**
+!package.json
+!package-lock.json
+!app/**
+!public/**
+!tsconfig.json
+!next-env.d.ts
+!next.config.ts
+!postcss.config.mjs
+!docker/
+!docker/**
+!redtraces-core/
+!redtraces-core/**
+docker/**/__pycache__

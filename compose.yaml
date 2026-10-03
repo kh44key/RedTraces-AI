@@ -1,0 +1,188 @@
+name: redtraces-ai
+x-api: &api
+  build:
+    context: .
+    dockerfile: docker/api.Dockerfile
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    PKCERT_DB_HOST: mysql
+    PKCERT_DB_USER: pkcert
+  depends_on:
+    mysql:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/leaks?limit=1')"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+services:
+  dashboard:
+    build: .
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+  mysql:
+    image: mysql:8.4.6
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: x_leaks_db
+      MYSQL_USER: pkcert
+      MYSQL_PASSWORD: ${PKCERT_DB_PASSWORD:?Set PKCERT_DB_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u pkcert -D instagram_leaks_db -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  telegram:
+    <<: *api
+    command: ["uvicorn", "telegram_collector:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8101:8000"]
+    volumes: ["telegram-data:/data"]
+  twitter:
+    <<: *api
+    command: ["uvicorn", "twitter_collector:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8102:8000"]
+    volumes: ["x-data:/data"]
+  facebook:
+    <<: *api
+    command: ["uvicorn", "facebook_collector:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8103:8000"]
+  instagram:
+    <<: *api
+    command: ["uvicorn", "instagram_collector:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8104:8000"]
+  forums:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    command: ["uvicorn", "forums_api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:5000:8000"]
+    volumes: ["forum-data:/data"]
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  unified-api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports: ["127.0.0.1:8100:8100"]
+    env_file: .env
+    environment:
+      UNIFIED_CTI_DATABASE_URL: sqlite:////data/unified_cti.db
+    volumes: ["unified-data:/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/api/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  redtraces-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: redtracesai
+      POSTGRES_USER: redtraces
+      # A local-only default keeps first startup working. Set
+      # REDTRACES_DB_PASSWORD in .env before exposing this stack anywhere.
+      POSTGRES_PASSWORD: ${REDTRACES_DB_PASSWORD:-redtraces-local}
+    volumes: ["redtraces-postgres-data:/var/lib/postgresql/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redtraces -d redtracesai"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  redtraces-redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  redtraces-api:
+    build:
+      context: .
+      dockerfile: docker/redtraces-core.Dockerfile
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: &redtraces-core-environment
+      DATABASE_URL: postgresql+asyncpg://redtraces:${REDTRACES_DB_PASSWORD:-redtraces-local}@redtraces-postgres:5432/redtracesai
+      REDIS_URL: redis://redtraces-redis:6379/0
+      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      OUTPUT_DIRECTORY: /output
+      TELEGRAM_LEGACY_API_URL: http://telegram:8000
+    ports: ["127.0.0.1:8200:8000"]
+    volumes: ["redtraces-output:/output"]
+    restart: unless-stopped
+    depends_on:
+      redtraces-postgres:
+        condition: service_healthy
+      redtraces-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  redtraces-telegram:
+    build:
+      context: .
+      dockerfile: docker/redtraces-core.Dockerfile
+    command: ["python", "/app/redtraces_telegram_runner.py"]
+    environment:
+      <<: *redtraces-core-environment
+      TELEGRAM_SESSION: /sessions/redtracesai
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_CHANNELS: ${REDTRACES_TELEGRAM_CHANNELS:-}
+      TELEGRAM_CONNECTION_MODE: ${REDTRACES_TELEGRAM_CONNECTION_MODE:-obfuscated}
+      TELEGRAM_PROXY_URL: ${REDTRACES_TELEGRAM_PROXY_URL:-}
+      TELEGRAM_DISCOVERY_ENABLED: ${REDTRACES_TELEGRAM_DISCOVERY_ENABLED:-false}
+      TELEGRAM_AUTO_JOIN: ${REDTRACES_TELEGRAM_AUTO_JOIN:-false}
+      TELEGRAM_MAX_CHANNELS: ${REDTRACES_TELEGRAM_MAX_CHANNELS:-20}
+      TELEGRAM_BACKFILL_LIMIT: ${REDTRACES_TELEGRAM_BACKFILL_LIMIT:-100}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+    volumes:
+      - redtraces-telegram-session:/sessions
+      - redtraces-output:/output
+    restart: unless-stopped
+    depends_on:
+      redtraces-postgres:
+        condition: service_healthy
+      redtraces-redis:
+        condition: service_healthy
+volumes:
+  mysql-data:
+    name: hexsentry_mysql-data
+    external: true
+  forum-data:
+    name: hexsentry_forum-data
+    external: true
+  unified-data:
+    name: hexsentry_unified-data
+    external: true
+  x-data:
+    name: hexsentry_x-data
+    external: true
+  telegram-data:
+    name: hexsentry_telegram-data
+    external: true
+  redtraces-postgres-data:
+  redtraces-telegram-session:
+  redtraces-output:

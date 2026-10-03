@@ -1,0 +1,282 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: redtracesai
+      POSTGRES_USER: redtraces
+      POSTGRES_PASSWORD: redtraces
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redtraces -d redtracesai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  api:
+    build: .
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      FRONTEND_ORIGIN: http://localhost:5173,http://127.0.0.1:5173
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SIEM_TYPE: ${SIEM_TYPE:-}
+      SIEM_URL: ${SIEM_URL:-}
+      SIEM_API_KEY: ${SIEM_API_KEY:-}
+      SIEM_USER: ${SIEM_USER:-}
+      SIEM_PASS: ${SIEM_PASS:-}
+      SIEM_VERIFY_SSL: ${SIEM_VERIFY_SSL:-true}
+      SIEM_TIMEOUT_SECONDS: ${SIEM_TIMEOUT_SECONDS:-30}
+      SIEM_RULE_ENDPOINT: ${SIEM_RULE_ENDPOINT:-}
+      SIEM_YARA_ENDPOINT: ${SIEM_YARA_ENDPOINT:-}
+      SIEM_RULES_ENABLED: ${SIEM_RULES_ENABLED:-false}
+      SIEM_ELASTIC_INDICES: ${SIEM_ELASTIC_INDICES:-logs-*,filebeat-*,packetbeat-*}
+      SIEM_WAZUH_INDEX: ${SIEM_WAZUH_INDEX:-wazuh-alerts-*}
+      SIEM_SPLUNK_OWNER: ${SIEM_SPLUNK_OWNER:-nobody}
+      SIEM_SPLUNK_APP: ${SIEM_SPLUNK_APP:-search}
+      SIEM_SPLUNK_CRON: ${SIEM_SPLUNK_CRON:-*/5 * * * *}
+      SIEM_QRADAR_API_VERSION: ${SIEM_QRADAR_API_VERSION:-24.0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./output:/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  reddit_collector:
+    build: .
+    command: python -m collectors.reddit_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+      REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+      REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-redtracesai/0.1}
+      REDDIT_SUBREDDITS: ${REDDIT_SUBREDDITS:-netsec,cybersecurity,blackhat}
+      REDDIT_DISCOVERY_ENABLED: ${REDDIT_DISCOVERY_ENABLED:-true}
+      REDDIT_MAX_SUBREDDITS: ${REDDIT_MAX_SUBREDDITS:-20}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      NOISE_CACHE_ENABLED: ${NOISE_CACHE_ENABLED:-true}
+      NOISE_CACHE_TTL_SECONDS: ${NOISE_CACHE_TTL_SECONDS:-86400}
+      NOISE_NEAR_DUPLICATE_ENABLED: ${NOISE_NEAR_DUPLICATE_ENABLED:-true}
+      NOISE_NEAR_DUPLICATE_THRESHOLD: ${NOISE_NEAR_DUPLICATE_THRESHOLD:-0.85}
+      NOISE_NEAR_DUPLICATE_PERMUTATIONS: ${NOISE_NEAR_DUPLICATE_PERMUTATIONS:-128}
+      NOISE_NEAR_DUPLICATE_MAX_ENTRIES: ${NOISE_NEAR_DUPLICATE_MAX_ENTRIES:-10000}
+      NOISE_FASTTEXT_MODEL_PATH: ${NOISE_FASTTEXT_MODEL_PATH:-/app/models/lid.176.ftz}
+      NOISE_SPAM_MODEL_PATH: ${NOISE_SPAM_MODEL_PATH:-/app/models/spam_classifier.joblib}
+      NOISE_SPAM_CLASSIFIER_ENABLED: ${NOISE_SPAM_CLASSIFIER_ENABLED:-true}
+      NOISE_SPAM_THRESHOLD: ${NOISE_SPAM_THRESHOLD:-0.80}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-60}
+    volumes:
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  discord_collector:
+    build: .
+    command: python -m collectors.discord_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_CHANNEL_IDS: ${DISCORD_CHANNEL_IDS:-}
+      DISCORD_BACKFILL_LIMIT: ${DISCORD_BACKFILL_LIMIT:-100}
+      DISCORD_INCLUDE_BOTS: ${DISCORD_INCLUDE_BOTS:-false}
+      DISCORD_DISCOVERY_ENABLED: ${DISCORD_DISCOVERY_ENABLED:-false}
+      DISCORD_CHANNEL_KEYWORDS: ${DISCORD_CHANNEL_KEYWORDS:-}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      NOISE_CACHE_ENABLED: ${NOISE_CACHE_ENABLED:-true}
+      NOISE_CACHE_TTL_SECONDS: ${NOISE_CACHE_TTL_SECONDS:-86400}
+      NOISE_NEAR_DUPLICATE_ENABLED: ${NOISE_NEAR_DUPLICATE_ENABLED:-true}
+      NOISE_NEAR_DUPLICATE_THRESHOLD: ${NOISE_NEAR_DUPLICATE_THRESHOLD:-0.85}
+      NOISE_NEAR_DUPLICATE_PERMUTATIONS: ${NOISE_NEAR_DUPLICATE_PERMUTATIONS:-128}
+      NOISE_NEAR_DUPLICATE_MAX_ENTRIES: ${NOISE_NEAR_DUPLICATE_MAX_ENTRIES:-10000}
+      NOISE_FASTTEXT_MODEL_PATH: ${NOISE_FASTTEXT_MODEL_PATH:-/app/models/lid.176.ftz}
+      NOISE_SPAM_MODEL_PATH: ${NOISE_SPAM_MODEL_PATH:-/app/models/spam_classifier.joblib}
+      NOISE_SPAM_CLASSIFIER_ENABLED: ${NOISE_SPAM_CLASSIFIER_ENABLED:-true}
+      NOISE_SPAM_THRESHOLD: ${NOISE_SPAM_THRESHOLD:-0.80}
+    volumes:
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  autodiscovery_collector:
+    build: .
+    command: python -m collectors.autodiscovery_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      AUTODISCOVERY_PROVIDER: ${AUTODISCOVERY_PROVIDER:-google_cse}
+      GOOGLE_CSE_API_KEY: ${GOOGLE_CSE_API_KEY:-}
+      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      AUTODISCOVERY_QUERIES: ${AUTODISCOVERY_QUERIES:-}
+      AUTODISCOVERY_RESULTS_PER_QUERY: ${AUTODISCOVERY_RESULTS_PER_QUERY:-10}
+      AUTODISCOVERY_POLL_INTERVAL_SECONDS: ${AUTODISCOVERY_POLL_INTERVAL_SECONDS:-3600}
+      AUTODISCOVERY_QUERY_DELAY_SECONDS: ${AUTODISCOVERY_QUERY_DELAY_SECONDS:-5}
+      AUTODISCOVERY_REQUEST_TIMEOUT_SECONDS: ${AUTODISCOVERY_REQUEST_TIMEOUT_SECONDS:-30}
+      AUTODISCOVERY_RETRY_ATTEMPTS: ${AUTODISCOVERY_RETRY_ATTEMPTS:-4}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      NOISE_CACHE_ENABLED: ${NOISE_CACHE_ENABLED:-true}
+      NOISE_CACHE_TTL_SECONDS: ${NOISE_CACHE_TTL_SECONDS:-86400}
+      NOISE_NEAR_DUPLICATE_ENABLED: ${NOISE_NEAR_DUPLICATE_ENABLED:-true}
+      NOISE_NEAR_DUPLICATE_THRESHOLD: ${NOISE_NEAR_DUPLICATE_THRESHOLD:-0.85}
+      NOISE_NEAR_DUPLICATE_PERMUTATIONS: ${NOISE_NEAR_DUPLICATE_PERMUTATIONS:-128}
+      NOISE_NEAR_DUPLICATE_MAX_ENTRIES: ${NOISE_NEAR_DUPLICATE_MAX_ENTRIES:-10000}
+      NOISE_FASTTEXT_MODEL_PATH: ${NOISE_FASTTEXT_MODEL_PATH:-/app/models/lid.176.ftz}
+      NOISE_SPAM_MODEL_PATH: ${NOISE_SPAM_MODEL_PATH:-/app/models/spam_classifier.joblib}
+      NOISE_SPAM_CLASSIFIER_ENABLED: ${NOISE_SPAM_CLASSIFIER_ENABLED:-true}
+      NOISE_SPAM_THRESHOLD: ${NOISE_SPAM_THRESHOLD:-0.80}
+    volumes:
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  telegram_collector:
+    build: .
+    command: python -m collectors.telegram_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_CHANNELS: ${TELEGRAM_CHANNELS:-}
+      TELEGRAM_SESSION: /app/sessions/redtracesai
+      TELEGRAM_CONNECTION_MODE: ${TELEGRAM_CONNECTION_MODE:-obfuscated}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+      TELEGRAM_DISCOVERY_ENABLED: ${TELEGRAM_DISCOVERY_ENABLED:-true}
+      TELEGRAM_AUTO_JOIN: ${TELEGRAM_AUTO_JOIN:-true}
+      TELEGRAM_MAX_CHANNELS: ${TELEGRAM_MAX_CHANNELS:-20}
+      TELEGRAM_BACKFILL_LIMIT: ${TELEGRAM_BACKFILL_LIMIT:-100}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      NOISE_CACHE_ENABLED: ${NOISE_CACHE_ENABLED:-true}
+      NOISE_CACHE_TTL_SECONDS: ${NOISE_CACHE_TTL_SECONDS:-86400}
+      NOISE_NEAR_DUPLICATE_ENABLED: ${NOISE_NEAR_DUPLICATE_ENABLED:-true}
+      NOISE_NEAR_DUPLICATE_THRESHOLD: ${NOISE_NEAR_DUPLICATE_THRESHOLD:-0.85}
+      NOISE_NEAR_DUPLICATE_PERMUTATIONS: ${NOISE_NEAR_DUPLICATE_PERMUTATIONS:-128}
+      NOISE_NEAR_DUPLICATE_MAX_ENTRIES: ${NOISE_NEAR_DUPLICATE_MAX_ENTRIES:-10000}
+      NOISE_FASTTEXT_MODEL_PATH: ${NOISE_FASTTEXT_MODEL_PATH:-/app/models/lid.176.ftz}
+      NOISE_SPAM_MODEL_PATH: ${NOISE_SPAM_MODEL_PATH:-/app/models/spam_classifier.joblib}
+      NOISE_SPAM_CLASSIFIER_ENABLED: ${NOISE_SPAM_CLASSIFIER_ENABLED:-true}
+      NOISE_SPAM_THRESHOLD: ${NOISE_SPAM_THRESHOLD:-0.80}
+    volumes:
+      - telegram_session:/app/sessions
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  tor:
+    image: dockurr/tor:latest
+    environment:
+      PASSWORD: ${TOR_CONTROL_PASSWORD:-change-me}
+    ports:
+      - "127.0.0.1:9050:9050"
+    expose:
+      - "9051"
+    restart: unless-stopped
+  darkweb_collector:
+    build: .
+    command: python -m collectors.darkweb_collector
+    environment:
+      DATABASE_URL: postgresql+asyncpg://redtraces:redtraces@postgres:5432/redtracesai
+      DARKWEB_TARGETS: ${DARKWEB_TARGETS:-}
+      DARKWEB_METADATA_ONLY: ${DARKWEB_METADATA_ONLY:-true}
+      DARKWEB_REQUIRE_TOR_CONTROL: ${DARKWEB_REQUIRE_TOR_CONTROL:-false}
+      DARKWEB_CRAWL_DELAY_SECONDS: ${DARKWEB_CRAWL_DELAY_SECONDS:-10}
+      DARKWEB_POLL_INTERVAL_SECONDS: ${DARKWEB_POLL_INTERVAL_SECONDS:-300}
+      DARKWEB_REQUEST_TIMEOUT_SECONDS: ${DARKWEB_REQUEST_TIMEOUT_SECONDS:-45}
+      DARKWEB_RETRY_ATTEMPTS: ${DARKWEB_RETRY_ATTEMPTS:-4}
+      DARKWEB_MAX_DEPTH: ${DARKWEB_MAX_DEPTH:-2}
+      DARKWEB_MAX_PAGES_PER_TARGET: ${DARKWEB_MAX_PAGES_PER_TARGET:-100}
+      DARKWEB_USER_AGENT: ${DARKWEB_USER_AGENT:-redtracesai-research/0.1}
+      CTI_KEYWORDS: ${CTI_KEYWORDS:-ransomware,CVE,zero-day,0day,exploit,botnet,stealer,infostealer,malware,data leak,breach,initial access,access broker,phishing}
+      CTI_FILTER_CONTENT: ${CTI_FILTER_CONTENT:-true}
+      NOISE_FILTER_ENABLED: ${NOISE_FILTER_ENABLED:-true}
+      NOISE_MIN_TEXT_LENGTH: ${NOISE_MIN_TEXT_LENGTH:-12}
+      NOISE_DEDUPLICATION_ENABLED: ${NOISE_DEDUPLICATION_ENABLED:-true}
+      NOISE_ALLOWED_LANGUAGES: ${NOISE_ALLOWED_LANGUAGES:-en,ru,zh,ar,fa,tr,unknown}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      NOISE_CACHE_ENABLED: ${NOISE_CACHE_ENABLED:-true}
+      NOISE_CACHE_TTL_SECONDS: ${NOISE_CACHE_TTL_SECONDS:-86400}
+      NOISE_NEAR_DUPLICATE_ENABLED: ${NOISE_NEAR_DUPLICATE_ENABLED:-true}
+      NOISE_NEAR_DUPLICATE_THRESHOLD: ${NOISE_NEAR_DUPLICATE_THRESHOLD:-0.85}
+      NOISE_NEAR_DUPLICATE_PERMUTATIONS: ${NOISE_NEAR_DUPLICATE_PERMUTATIONS:-128}
+      NOISE_NEAR_DUPLICATE_MAX_ENTRIES: ${NOISE_NEAR_DUPLICATE_MAX_ENTRIES:-10000}
+      NOISE_FASTTEXT_MODEL_PATH: ${NOISE_FASTTEXT_MODEL_PATH:-/app/models/lid.176.ftz}
+      NOISE_SPAM_MODEL_PATH: ${NOISE_SPAM_MODEL_PATH:-/app/models/spam_classifier.joblib}
+      NOISE_SPAM_CLASSIFIER_ENABLED: ${NOISE_SPAM_CLASSIFIER_ENABLED:-true}
+      NOISE_SPAM_THRESHOLD: ${NOISE_SPAM_THRESHOLD:-0.80}
+      TOR_SOCKS_PROXY: socks5h://tor:9050
+      TOR_CONTROL_HOST: tor
+      TOR_CONTROL_PORT: "9051"
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD:-change-me}
+    volumes:
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tor:
+        condition: service_started
+    restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      # Presentation mode: always load the complete synthetic intelligence workspace.
+      VITE_DEMO_MODE: "true"
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  telegram_session:
