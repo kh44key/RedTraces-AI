@@ -194,13 +194,13 @@ function Overview({
       </div>
       <header className="hero">
         <div>
-          <span className="eyebrow">REDTRACES AI / LIVE THREAT OPERATIONS</span>
+          <span className="eyebrow">REDTRACES AI / SECURITY OPERATIONS</span>
           <h1>
-            CYBER THREAT
+            Threat Intelligence
             <br />
-            <em>INTELLIGENCE</em>
+              <em>Dashboard</em>
           </h1>
-          <p>Unified monitoring across X, Facebook, Instagram, Telegram and authorized forum sources.</p>
+          <p>Monitor source health, triage signals, and investigate indicators from one workspace.</p>
         </div>
         <SecurityCore online={online.length} />
       </header>
@@ -1121,16 +1121,12 @@ function Connections({
 export default function Home() {
   const [view, setView] = useState<View>("overview");
   const [urls, setUrls] = useState<URLs>(defaults);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   useEffect(() => {
     try {
       const s = localStorage.getItem("redtraces-ai-collector-urls") ?? localStorage.getItem("hexsentry-collector-urls");
       if (s) setUrls({ ...defaults, ...JSON.parse(s) });
     } catch {}
-  }, []);
-  useEffect(() => {
-    const saved = localStorage.getItem("redtraces-ai-theme");
-    if (saved === "light" || saved === "dark") setTheme(saved);
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
