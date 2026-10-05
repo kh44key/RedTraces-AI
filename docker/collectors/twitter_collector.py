@@ -796,7 +796,7 @@ async def get_dashboard():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>X Watch — Threat Intelligence</title>
+  <title>RedTraces AI — X Signal Watch</title>
   <style>
     :root{--bg:#000;--panel:#000;--line:#2f3336;--soft:#16181c;--text:#e7e9ea;--muted:#71767b;--blue:#1d9bf0;--red:#f4212e;--green:#00ba7c;--amber:#f59e0b}
     *{box-sizing:border-box}html{color-scheme:dark}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -816,12 +816,15 @@ async def get_dashboard():
     .search-wrap{padding:12px 16px;border-bottom:1px solid var(--line)}.search-actions{display:flex}.search-box{display:flex;background:#202327;border:1px solid transparent;border-radius:999px;overflow:hidden}.search-box:focus-within{background:#000;border-color:var(--blue)}.search-box span{padding:11px 0 11px 16px;color:var(--muted)}.search-box input{width:100%;border:0;outline:0;background:transparent;color:var(--text);padding:11px}.primary{border:0;background:var(--blue);font-weight:700;border-radius:999px;padding:9px 18px;cursor:pointer;margin-left:8px}.empty{padding:50px 28px;text-align:center}.empty h2{font-size:28px;margin:0 0 8px}.empty p{color:var(--muted);margin:auto;max-width:350px}
     .right{padding:12px 0 30px 28px}.right-inner{position:sticky;top:12px}.side-search{display:flex;align-items:center;background:#202327;border-radius:999px;padding:0 16px;margin-bottom:16px}.side-search input{width:100%;border:0;outline:0;background:transparent;padding:12px;color:var(--text)}.side-card{border:1px solid var(--line);border-radius:16px;margin-bottom:16px;overflow:hidden}.side-card h2{font-size:20px;margin:0;padding:12px 16px}.trend{padding:11px 16px;cursor:pointer}.trend:hover{background:#080808}.trend small{color:var(--muted)}.trend strong{display:block;margin:2px 0}.show-more{padding:15px 16px;color:var(--blue);cursor:pointer}.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}.stat{background:#000;padding:15px}.stat b{font-size:22px;display:block}.stat span{color:var(--muted);font-size:13px}
     dialog{width:min(520px,calc(100% - 24px));border:1px solid var(--line);border-radius:16px;background:#000;color:var(--text);padding:0}dialog::backdrop{background:#5b708366}.modal-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}.modal-head h2{font-size:20px;margin:0}.modal-body{padding:20px}.modal-body label{font-weight:700;display:block;margin-bottom:8px}.modal-body input,.modal-body select{width:100%;border:1px solid var(--line);border-radius:10px;background:#000;color:var(--text);padding:14px;outline:0;margin-bottom:12px}.modal-body input:focus,.modal-body select:focus{border-color:var(--blue)}.modal-body p{color:var(--muted);font-size:13px}.modal-foot{display:flex;justify-content:flex-end;padding-top:10px}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);opacity:0;background:var(--blue);color:white;padding:12px 20px;border-radius:8px;transition:.2s;z-index:20}.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+    /* RedTraces analyst workbench treatment. */
+    body{background:radial-gradient(ellipse at 63% -10%,rgba(26,126,112,.22),transparent 42%),#07110f}.shell{width:min(1480px,100%);grid-template-columns:225px minmax(560px,1fr) 300px;background:rgba(6,17,15,.72)}.left{padding:18px 14px;background:#091815;border-color:rgba(132,187,171,.13)}.brand{width:44px;height:44px;font-size:25px;border:1px solid rgba(39,215,189,.25);background:#0e2923;color:#73e3ce}.nav-btn{font-size:14px;gap:13px;border-radius:7px;padding:10px 12px;color:#9db5ad}.nav-btn.active,.nav-btn:hover{background:rgba(39,215,189,.09);color:#eff9f5}.post-btn{width:100%;margin-top:16px;border:1px solid rgba(39,215,189,.38);border-radius:7px;background:rgba(39,215,189,.12);color:#75e6d1;font-size:13px;padding:12px}.system-card{background:#0a1714;border:1px solid rgba(132,187,171,.12);border-radius:8px}.pulse{background:#4bd99d;box-shadow:0 0 0 4px rgba(75,217,157,.1)}main{border-color:rgba(132,187,171,.13)}.topbar{background:rgba(7,17,15,.92);border-color:rgba(132,187,171,.13)}.tabs{padding:0 12px}.tab{font-size:12px;height:44px}.tab.active:after{background:#2ac9ae;height:3px}.composer{margin:16px 20px 10px;padding:15px;border:1px solid rgba(39,215,189,.18);border-radius:9px;background:#0b1c18}.composer-title{font-size:16px}.tweet{margin:0 20px 9px;padding:15px;border:1px solid rgba(132,187,171,.13);border-radius:9px;background:#0b1c18}.tweet:hover{background:#10251f}.avatar{width:38px;height:38px;flex-basis:38px;border-radius:7px}.tag{border-radius:4px;background:rgba(39,215,189,.08);border-color:rgba(39,215,189,.16);color:#71dfcc}.tag.domain{background:rgba(232,100,109,.09);border-color:rgba(232,100,109,.2);color:#eea1a8}.right{padding:16px;background:#081511}.side-card{border-radius:9px;background:#0b1c18;border-color:rgba(132,187,171,.14)}.side-card h2{font-size:12px;letter-spacing:.6px;text-transform:uppercase}.stat{background:#0b1c18}.side-search{background:#0b1c18;border:1px solid rgba(132,187,171,.14)}.primary{background:#29c9ae;color:#04100d}.search-box{background:#0b1c18}.channel-item:hover{background:#10251f}
   </style>
 </head>
 <body>
 <div class="shell">
   <aside class="left">
-    <div class="brand">𝕏</div>
+    <div class="brand" title="RedTraces AI X collection">𝕏</div>
+    <div style="padding:3px 14px 11px;color:#1d9bf0;font-size:10px;font-weight:800;letter-spacing:1.2px">REDTRACES AI<br><span style="color:var(--muted);font-weight:600">X SIGNAL WATCH</span></div>
     <nav>
       <button class="nav-btn active" data-panel="live"><span class="nav-icon">⌂</span><span class="nav-label">Live feed</span></button>
       <button class="nav-btn" data-panel="database"><span class="nav-icon">▤</span><span class="nav-label">Archive</span></button>
@@ -842,7 +845,7 @@ async def get_dashboard():
       </div>
     </header>
     <section class="panel active" id="livePanel">
-      <div class="composer"><div class="avatar">XW</div><div class="composer-copy"><div class="composer-title">Threat Intelligence Feed</div><div class="composer-sub">Verified exposure signals detected from public and private accounts</div></div></div>
+      <div class="composer"><div class="avatar">RT</div><div class="composer-copy"><div class="composer-title">RedTraces AI / X Intelligence Feed</div><div class="composer-sub">CTI-enriched public-source signals from approved monitored accounts</div></div></div>
       <div id="liveFeed"><div class="notice"><span class="spinner"></span><div>Loading monitored posts…</div></div></div>
     </section>
     <section class="panel" id="databasePanel"><div class="section-head"><span>Complete alert archive</span><span class="count"><span id="dbRecordCount">0</span> records</span></div><div id="databaseFeed"></div></section>
@@ -865,7 +868,7 @@ async def get_dashboard():
   </main>
 
   <aside class="right"><div class="right-inner">
-    <div class="side-search"><span>⌕</span><input id="quickSearch" placeholder="Search X Watch"></div>
+    <div class="side-search"><span>⌕</span><input id="quickSearch" placeholder="Search RedTraces X signals"></div>
     <section class="side-card"><h2>Monitor overview</h2><div class="stat-grid"><div class="stat"><b id="liveCount">—</b><span>Recent alerts</span></div><div class="stat"><b id="todayCount">—</b><span>Today</span></div><div class="stat"><b id="weekCount">—</b><span>This week</span></div><div class="stat"><b><span class="pulse" style="display:inline-block"></span> Live</b><span>Scraper status</span></div></div></section>
     <section class="side-card"><h2>Worker accounts</h2><div id="accountsList"><p style="opacity:.6;font-size:13px">Loading accounts…</p></div><p style="opacity:.6;font-size:12px;margin-top:10px;line-height:1.5">twscrape rotates requests across every active account. Add more with <code>python add_x_account.py add</code>.</p></section>
   </div></aside>

@@ -20,7 +20,8 @@ x-api: &api
 services:
   dashboard:
     build: .
-    ports: ["127.0.0.1:3000:3000"]
+    # Override DASHBOARD_PORT=3500 on hosts where Windows reserves port 3000.
+    ports: ["127.0.0.1:${DASHBOARD_PORT:-3000}:3000"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -57,10 +58,12 @@ services:
     <<: *api
     command: ["uvicorn", "facebook_collector:app", "--host", "0.0.0.0", "--port", "8000"]
     ports: ["127.0.0.1:8103:8000"]
+    volumes: ["facebook-data:/data"]
   instagram:
     <<: *api
     command: ["uvicorn", "instagram_collector:app", "--host", "0.0.0.0", "--port", "8000"]
     ports: ["127.0.0.1:8104:8000"]
+    volumes: ["instagram-data:/data"]
   forums:
     build:
       context: .
@@ -122,7 +125,7 @@ services:
     environment: &redtraces-core-environment
       DATABASE_URL: postgresql+asyncpg://redtraces:${REDTRACES_DB_PASSWORD:-redtraces-local}@redtraces-postgres:5432/redtracesai
       REDIS_URL: redis://redtraces-redis:6379/0
-      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      FRONTEND_ORIGIN: http://localhost:${DASHBOARD_PORT:-3000},http://127.0.0.1:${DASHBOARD_PORT:-3000},http://localhost:3500,http://127.0.0.1:3500
       OUTPUT_DIRECTORY: /output
       TELEGRAM_LEGACY_API_URL: http://telegram:8000
     ports: ["127.0.0.1:8200:8000"]
@@ -183,6 +186,8 @@ volumes:
   telegram-data:
     name: hexsentry_telegram-data
     external: true
+  facebook-data:
+  instagram-data:
   redtraces-postgres-data:
   redtraces-telegram-session:
   redtraces-output:

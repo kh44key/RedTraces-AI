@@ -13,7 +13,7 @@ Do not commit it. All published ports bind only to this computer.
 
 | Service | Address |
 | --- | --- |
-| Dashboard | http://localhost:3000 |
+| Dashboard | http://localhost:3000 (override with `DASHBOARD_PORT=3500` if needed) |
 | Forum API docs | http://localhost:5000/docs |
 | Unified API docs | http://localhost:8100/docs |
 | Telegram API docs | http://localhost:8101/docs |

@@ -1,10 +1,15 @@
 # RedTraces AI CTI
 
-See [Docker setup and API guide](docker/README.md) for architecture, local service URLs and operation instructions.
+See [Docker setup and API guide](docker/README.md) for architecture, local service URLs and operation instructions.  See [the source integration guide](INTEGRATIONS.md) for the one local `.env` location used to configure X, Instagram, Facebook, Telegram, and reviewed dark-web/forum intake.
 
 Start with: docker compose up -d --build
 
 The Docker stack starts local APIs with live polling disabled. Original frontend starter notes follow.
+
+The dashboard opens at http://localhost:3000 in labelled Demo mode. Set
+`DASHBOARD_PORT=3500` if your machine reserves port 3000. See
+[Dashboard UI and verification](DASHBOARD-UI.md) for demo/live behavior,
+exports, accessibility, artwork credits, and tests.
 
 # vinext-starter
 
