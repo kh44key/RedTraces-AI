@@ -607,7 +607,7 @@ async def get_dashboard():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Telegram Monitor</title>
+        <title>RedTraces AI — Telegram Signal Core</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <style>
             :root { --tg-blue:#229ed9; --tg-dark:#168acd; --tg-pale:#e7f5fc; --tg-bg:#eef3f7; --tg-text:#17212b; --tg-muted:#708499; --tg-line:#dce6ed; }
@@ -615,7 +615,7 @@ async def get_dashboard():
             body { min-height:100vh; background:linear-gradient(145deg,#e9f5fb 0,#f5f8fa 42%,#eaf1f5 100%); color:var(--tg-text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
             .container-fluid { max-width:1480px; margin:auto; background:rgba(255,255,255,.68); border:1px solid rgba(255,255,255,.85); border-radius:24px; padding:26px!important; box-shadow:0 20px 55px rgba(48,86,108,.12); backdrop-filter:blur(16px); }
             h2 { color:#142b3a; letter-spacing:-.4px; font-size:0; }
-            h2::after { content:'Telegram Threat & Leak Monitor'; font-size:25px; }
+            h2::after { content:'RedTraces AI // Telegram Signal Core'; font-size:25px; }
             .border-bottom { border-color:var(--tg-line)!important; }
             .text-muted { color:var(--tg-muted)!important; }
             .card { background:#fff; border:1px solid var(--tg-line); border-radius:17px; overflow:hidden; color:var(--tg-text); box-shadow:0 7px 22px rgba(40,75,96,.06); }
@@ -660,7 +660,7 @@ async def get_dashboard():
             #cyberCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:-2}.energy-bolt{position:fixed;top:-20%;left:52%;width:2px;height:140%;z-index:-1;opacity:.35;background:linear-gradient(transparent,var(--cyan),#fff,var(--violet),transparent);filter:drop-shadow(0 0 14px var(--cyan));transform:rotate(17deg);animation:bolt 4.8s infinite steps(1)}
             @keyframes bolt{0%,88%,100%{opacity:.04}89%{opacity:.9;transform:rotate(17deg) translateX(-9px)}91%{opacity:.16}93%{opacity:.7;transform:rotate(17deg) translateX(12px)}}
             .container-fluid{max-width:1600px;position:relative;background:linear-gradient(145deg,rgba(4,10,25,.9),rgba(10,18,41,.74));border:1px solid rgba(0,234,255,.25);box-shadow:0 30px 90px #000,0 0 70px rgba(0,126,255,.12) inset;backdrop-filter:blur(18px);transform-style:preserve-3d}
-            h2{font-size:0!important}h2::after{content:'TELEGRAM // THREAT CORE';color:#fff;font-size:25px;letter-spacing:1.5px;text-shadow:0 0 16px var(--cyan),0 0 34px var(--blue)}.text-muted{color:#7f9eb5!important}.border-bottom{border-color:rgba(0,234,255,.22)!important}
+            h2{font-size:0!important}h2::after{content:'REDTRACES AI // TELEGRAM CORE';color:#fff;font-size:25px;letter-spacing:1.5px;text-shadow:0 0 16px var(--cyan),0 0 34px var(--blue)}.text-muted{color:#7f9eb5!important}.border-bottom{border-color:rgba(0,234,255,.22)!important}
             .engine-deck{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;margin:-4px 0 18px;border:1px solid rgba(0,234,255,.2);border-radius:13px;background:rgba(3,9,23,.72);box-shadow:0 12px 30px rgba(0,0,0,.32)}.hud-kicker{color:var(--cyan);font:700 10px Consolas,monospace;letter-spacing:3px}.engine-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.engine-btn{border:1px solid;border-radius:8px;padding:8px 12px;color:#fff;background:#050c1d;font:700 10px Consolas,monospace;letter-spacing:1px;transition:.25s}.engine-btn:hover{transform:translateY(-2px)}.engine-start{border-color:var(--acid)}.engine-start:hover{background:var(--acid);color:#071005;box-shadow:0 0 25px rgba(184,255,53,.5)}.engine-stop{border-color:#ff335f}.engine-stop:hover{background:#ff335f;box-shadow:0 0 25px rgba(255,51,95,.5)}.engine-state{display:flex;align-items:center;gap:7px;color:var(--cyan);font:700 10px Consolas,monospace}.engine-state i{width:7px;height:7px;border-radius:50%;background:var(--acid);box-shadow:0 0 12px var(--acid);animation:pulse 1.3s infinite}@keyframes pulse{50%{opacity:.3;transform:scale(.65)}}
             .stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:20px}.stat{position:relative;overflow:hidden;min-height:92px;padding:16px 18px;border:1px solid rgba(0,234,255,.18);border-radius:14px;background:linear-gradient(145deg,rgba(8,19,42,.9),rgba(4,8,21,.78));box-shadow:0 12px 30px rgba(0,0,0,.3);transition:.3s}.stat:hover{transform:perspective(700px) rotateX(5deg) translateY(-5px);border-color:var(--cyan);box-shadow:0 18px 42px #000,0 0 25px rgba(0,234,255,.15)}.stat::after{content:'';position:absolute;right:-25px;bottom:-42px;width:105px;height:105px;border:1px solid currentColor;border-radius:50%;opacity:.2;box-shadow:0 0 25px currentColor}.stat:nth-child(1){color:var(--cyan)}.stat:nth-child(2){color:var(--violet)}.stat:nth-child(3){color:var(--pink)}.stat:nth-child(4){color:var(--acid)}.stat-label{display:block;opacity:.72;font:700 9px Consolas,monospace;letter-spacing:2px}.stat-value{display:block;margin-top:9px;color:#fff;font:800 27px Consolas,monospace;text-shadow:0 0 15px currentColor}
             .nav-tabs{border:1px solid rgba(0,234,255,.2);background:rgba(4,10,24,.76);box-shadow:0 10px 30px rgba(0,0,0,.35)}.nav-tabs .nav-link{color:#7898b1}.nav-tabs .nav-link:hover{color:var(--cyan);background:rgba(0,234,255,.07)}.nav-tabs .nav-link.active{color:#031018;background:linear-gradient(110deg,var(--cyan),#6cf3ff);box-shadow:0 0 25px rgba(0,234,255,.5)}
@@ -678,8 +678,8 @@ async def get_dashboard():
             <!-- HEADER -->
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
                 <div>
-                    <h2 class="fw-bold mb-0">✈️ Telegram Threat & Leak Monitor (MySQL)</h2>
-                    <small class="text-muted">Real-time Telegram Channel Scanning & Intelligence System</small>
+                    <h2 class="fw-bold mb-0">✈️ RedTraces AI Telegram Signal Core</h2>
+                    <small class="text-muted">Channel-native monitoring surface with RedTraces AI enrichment and IOC analysis</small>
                 </div>
                 <div>
                     <span class="badge bg-success p-2">Telegram MTProxy Active</span>

@@ -7,7 +7,25 @@ same REST endpoints every collector exposes, so one template serves them all.
 
 
 def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
-    """Return a self-contained HTML dashboard branded for one platform."""
+    """Return a source-aware RedTraces AI collection console.
+
+    The panels intentionally borrow familiar feed conventions (profile strip,
+    cards, source-colour accents) without impersonating a social platform.
+    They remain clearly labelled as analyst monitoring tools.
+    """
+    source = platform.lower().replace(" ", "-")
+    target_label = {
+        "instagram": "profile or hashtag",
+        "facebook": "page or group",
+        "telegram": "channel",
+        "x": "account",
+    }.get(source, "source")
+    source_copy = {
+        "instagram": "Profile and hashtag intelligence feed",
+        "facebook": "Page and group intelligence feed",
+        "telegram": "Channel intelligence feed",
+        "x": "Account intelligence feed",
+    }.get(source, "Source intelligence feed")
     return (
         r"""
 <!doctype html>
@@ -38,7 +56,11 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
     main{border-right:1px solid var(--line);min-width:0}
     .topbar{position:sticky;top:0;z-index:5;background:rgba(6,7,11,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
     .topbar h1{font-size:17px;margin:0;letter-spacing:.5px}
+    .product-label{display:block;color:var(--accent);font-size:9px;letter-spacing:1.4px;font-weight:800;margin-bottom:1px}
     .icon-btn{border:1px solid var(--line);background:var(--panel2);width:36px;height:36px;border-radius:6px}
+    .source-profile{display:flex;align-items:center;gap:11px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,color-mix(in srgb,var(--accent),transparent 88%),transparent)}
+    .source-mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#7b2cbf);color:#fff;font-size:20px;font-weight:800;box-shadow:0 8px 20px color-mix(in srgb,var(--accent),transparent 75%)}
+    .source-profile b{display:block;font-size:13px}.source-profile span{display:block;color:var(--ink3);font-size:11px}.source-profile .profile-state{margin-left:auto;color:var(--good);font-weight:800;font-size:10px;letter-spacing:1px}.profile-state i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(55,211,155,.12);margin-right:5px}
     .panel{display:none;padding:4px 0}.panel.active{display:block}
     .section-head{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center}
     .count{color:var(--accent)}
@@ -75,15 +97,21 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
     .mbody{padding:18px}.mbody label{font-weight:700;display:block;margin-bottom:7px}
     .mbody input,.mbody select{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--bg2);color:var(--ink);padding:12px;outline:0;margin-bottom:12px}
     .mbody input:focus,.mbody select:focus{border-color:var(--accent)}.mbody p{color:var(--ink3);font-size:12px}
+    /* Familiar source cues, deliberately kept inside the RedTraces analyst console. */
+    .source-instagram{--accent:#ff5da2;background:radial-gradient(circle at 75% 0,#48194a 0,transparent 30%),linear-gradient(140deg,#110d18,#090b12 60%)}
+    .source-instagram .source-mark{border-radius:50%;background:conic-gradient(from 210deg,#ffcb55,#ff5d87,#a65de8,#ffcb55);position:relative}.source-instagram .source-mark::after{content:'';position:absolute;inset:5px;border:2px solid #fff;border-radius:12px}.source-instagram .card{margin:12px 14px;border:1px solid rgba(255,93,162,.2);border-radius:16px;background:linear-gradient(145deg,#17111c,#10131b)}.source-instagram .card:hover{background:#1d1421}.source-instagram .avatar{border:2px solid #ff5da2;box-shadow:0 0 0 2px #7b2cbf}.source-instagram .source-profile{margin:10px 14px;border:1px solid rgba(255,93,162,.2);border-radius:16px}.source-instagram .topbar{background:rgba(16,10,18,.87)}
+    .source-facebook{--accent:#4f93e6;background:radial-gradient(circle at 75% 0,#142c53 0,transparent 32%),linear-gradient(140deg,#0a111c,#090d14 60%)}
+    .source-facebook .source-mark{border-radius:50%;background:#2374e1;font-family:Arial,sans-serif}.source-facebook .card{margin:10px 14px;border:1px solid rgba(79,147,230,.2);border-radius:12px;background:#111b29;box-shadow:0 6px 18px rgba(0,0,0,.16)}.source-facebook .card:hover{background:#152235}.source-facebook .source-profile{background:#111b29;margin:10px 14px;border:1px solid rgba(79,147,230,.22);border-radius:12px}.source-facebook .topbar{background:rgba(10,17,28,.9)}.source-facebook .avatar{border-radius:12px}
+    .source-twitter,.source-x{--accent:#76b7ff;background:radial-gradient(circle at 75% 0,#132942 0,transparent 30%),linear-gradient(140deg,#05090e,#080d13 60%)}.source-twitter .source-mark,.source-x .source-mark{border-radius:50%;background:#111}.source-twitter .card,.source-x .card{padding:16px 18px}.source-telegram{--accent:#37aee2}.source-telegram .source-mark{border-radius:50%;background:#229ed9}
     @media(max-width:960px){.shell{grid-template-columns:1fr}.left,.right{position:relative;height:auto;border-right:0}}
   </style>
 </head>
-<body>
+<body class="source-__SOURCE_CLASS__">
 <div class="shell">
   <aside class="left">
     <div class="brand">
       <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g transform="translate(256,256)"><path d="M 78,-75 L 104,-60 L 104,60 L 0,120 L -104,60 L -104,-60 L 0,-120 L 26,-105" fill="none" stroke="#ff2f4d" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M -44,-6 L -12,26 L 52,-42" fill="none" stroke="#ff2f4d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
-      <div><b>HEX<i>SENTRY</i></b><small>__PLATFORM__ INTEL</small></div>
+      <div><b>RED<i>TRACES</i> AI</b><small>__PLATFORM__ COLLECTION</small></div>
     </div>
     <nav>
       <button class="nav-btn active" data-panel="live"><span class="ic">⌂</span>Live feed</button>
@@ -91,11 +119,12 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
       <button class="nav-btn" data-panel="search"><span class="ic">⌕</span>Explore</button>
       <button class="nav-btn" data-panel="targets"><span class="ic">◎</span>Targets</button>
     </nav>
-    <button class="add-btn" onclick="targetModal.showModal()">+ Add target</button>
+    <button class="add-btn" onclick="targetModal.showModal()">+ Add __TARGET_LABEL__</button>
     <div class="sys"><span class="pulse"></span><div><b>Monitor active</b><br><small style="color:var(--ink3)">Scanning __PLATFORM__ __GLYPH__</small></div></div>
   </aside>
   <main>
-    <header class="topbar"><h1 id="ttl">Live feed</h1><button class="icon-btn" onclick="refresh()">↻</button></header>
+    <header class="topbar"><div><small class="product-label">REDTRACES AI / SOURCE MONITOR</small><h1 id="ttl">Live feed</h1></div><button class="icon-btn" onclick="refresh()" aria-label="Refresh feed">↻</button></header>
+    <section class="source-profile"><div class="source-mark">__GLYPH__</div><div><b>__PLATFORM__ monitored sources</b><span>__SOURCE_COPY__ · CTI-enriched results</span></div><span class="profile-state"><i></i>LIVE</span></section>
     <section class="panel active" id="livePanel"><div id="liveFeed"><div class="notice"><span class="spinner"></span></div></div></section>
     <section class="panel" id="archivePanel"><div class="section-head"><span>Complete alert archive</span><span class="count" id="arcCount">0</span></div><div id="arcFeed"></div></section>
     <section class="panel" id="searchPanel">
@@ -103,7 +132,7 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
       <div id="searchFeed"><div class="empty"><h2>Search the archive</h2><p>Find monitored posts by keyword, account, entity, domain or priority.</p></div></div>
     </section>
     <section class="panel" id="targetsPanel">
-      <div class="section-head"><span>Monitored accounts / pages</span><button class="primary" onclick="targetModal.showModal()">+ Add</button></div>
+      <div class="section-head"><span>Monitored __TARGET_LABEL__ sources</span><button class="primary" onclick="targetModal.showModal()">+ Add</button></div>
       <div id="chanList"><div class="notice"><span class="spinner"></span></div></div>
       <div class="empty" style="border-top:1px solid var(--line)"><h2>Scan a dump file</h2><p>Upload a line-by-line text/raw file to detect exposures locally.</p>
         <input type="file" id="fileIn" style="display:none" onchange="uploadFile(this)"><button class="primary" style="margin-top:16px" onclick="fileIn.click()">Upload file</button></div>
@@ -119,9 +148,9 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
 </div>
 <dialog id="targetModal"><div class="mhead"><h2 style="font-size:17px;margin:0">Add monitored target</h2><button class="icon-btn" onclick="targetModal.close()">×</button></div>
   <div class="mbody">
-    <label>Target type</label><select id="tType"><option value="channel">Account / page username</option><option value="keyword">Entity keyword</option></select>
+    <label>Target type</label><select id="tType"><option value="channel">__TARGET_LABEL__</option><option value="keyword">Entity keyword</option></select>
     <label>Handle or term</label><input id="tVal" placeholder="e.g. username_or_term">
-    <p>Accounts/pages are polled by the crawler; keywords widen the entity watchlist.</p>
+    <p>Approved __TARGET_LABEL__ sources are polled by the collector; keywords widen the entity watchlist.</p>
     <div style="text-align:right;margin-top:10px"><button class="primary" onclick="submitTarget()">Start monitoring</button></div>
   </div></dialog>
 <script>
@@ -157,4 +186,7 @@ def dashboard_html(platform: str, glyph: str, accent: str = "#ff2f4d") -> str:
         .replace("__PLATFORM__", platform)
         .replace("__GLYPH__", glyph)
         .replace("__ACCENT__", accent)
+        .replace("__SOURCE_CLASS__", source)
+        .replace("__TARGET_LABEL__", target_label)
+        .replace("__SOURCE_COPY__", source_copy)
     )

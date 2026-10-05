@@ -796,7 +796,7 @@ async def get_dashboard():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>X Watch — Threat Intelligence</title>
+  <title>RedTraces AI — X Signal Watch</title>
   <style>
     :root{--bg:#000;--panel:#000;--line:#2f3336;--soft:#16181c;--text:#e7e9ea;--muted:#71767b;--blue:#1d9bf0;--red:#f4212e;--green:#00ba7c;--amber:#f59e0b}
     *{box-sizing:border-box}html{color-scheme:dark}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -821,7 +821,8 @@ async def get_dashboard():
 <body>
 <div class="shell">
   <aside class="left">
-    <div class="brand">𝕏</div>
+    <div class="brand" title="RedTraces AI X collection">𝕏</div>
+    <div style="padding:3px 14px 11px;color:#1d9bf0;font-size:10px;font-weight:800;letter-spacing:1.2px">REDTRACES AI<br><span style="color:var(--muted);font-weight:600">X SIGNAL WATCH</span></div>
     <nav>
       <button class="nav-btn active" data-panel="live"><span class="nav-icon">⌂</span><span class="nav-label">Live feed</span></button>
       <button class="nav-btn" data-panel="database"><span class="nav-icon">▤</span><span class="nav-label">Archive</span></button>
@@ -842,7 +843,7 @@ async def get_dashboard():
       </div>
     </header>
     <section class="panel active" id="livePanel">
-      <div class="composer"><div class="avatar">XW</div><div class="composer-copy"><div class="composer-title">Threat Intelligence Feed</div><div class="composer-sub">Verified exposure signals detected from public and private accounts</div></div></div>
+      <div class="composer"><div class="avatar">RT</div><div class="composer-copy"><div class="composer-title">RedTraces AI / X Intelligence Feed</div><div class="composer-sub">CTI-enriched public-source signals from approved monitored accounts</div></div></div>
       <div id="liveFeed"><div class="notice"><span class="spinner"></span><div>Loading monitored posts…</div></div></div>
     </section>
     <section class="panel" id="databasePanel"><div class="section-head"><span>Complete alert archive</span><span class="count"><span id="dbRecordCount">0</span> records</span></div><div id="databaseFeed"></div></section>
@@ -865,7 +866,7 @@ async def get_dashboard():
   </main>
 
   <aside class="right"><div class="right-inner">
-    <div class="side-search"><span>⌕</span><input id="quickSearch" placeholder="Search X Watch"></div>
+    <div class="side-search"><span>⌕</span><input id="quickSearch" placeholder="Search RedTraces X signals"></div>
     <section class="side-card"><h2>Monitor overview</h2><div class="stat-grid"><div class="stat"><b id="liveCount">—</b><span>Recent alerts</span></div><div class="stat"><b id="todayCount">—</b><span>Today</span></div><div class="stat"><b id="weekCount">—</b><span>This week</span></div><div class="stat"><b><span class="pulse" style="display:inline-block"></span> Live</b><span>Scraper status</span></div></div></section>
     <section class="side-card"><h2>Worker accounts</h2><div id="accountsList"><p style="opacity:.6;font-size:13px">Loading accounts…</p></div><p style="opacity:.6;font-size:12px;margin-top:10px;line-height:1.5">twscrape rotates requests across every active account. Add more with <code>python add_x_account.py add</code>.</p></section>
   </div></aside>
