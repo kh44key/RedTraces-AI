@@ -58,10 +58,12 @@ services:
     <<: *api
     command: ["uvicorn", "facebook_collector:app", "--host", "0.0.0.0", "--port", "8000"]
     ports: ["127.0.0.1:8103:8000"]
+    volumes: ["facebook-data:/data"]
   instagram:
     <<: *api
     command: ["uvicorn", "instagram_collector:app", "--host", "0.0.0.0", "--port", "8000"]
     ports: ["127.0.0.1:8104:8000"]
+    volumes: ["instagram-data:/data"]
   forums:
     build:
       context: .
@@ -184,6 +186,8 @@ volumes:
   telegram-data:
     name: hexsentry_telegram-data
     external: true
+  facebook-data:
+  instagram-data:
   redtraces-postgres-data:
   redtraces-telegram-session:
   redtraces-output:

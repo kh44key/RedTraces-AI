@@ -1,6 +1,6 @@
 # RedTraces AI CTI
 
-See [Docker setup and API guide](docker/README.md) for architecture, local service URLs and operation instructions.
+See [Docker setup and API guide](docker/README.md) for architecture, local service URLs and operation instructions.  See [the source integration guide](INTEGRATIONS.md) for the one local `.env` location used to configure X, Instagram, Facebook, Telegram, and reviewed dark-web/forum intake.
 
 Start with: docker compose up -d --build
 
