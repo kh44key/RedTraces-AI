@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 type View =
   | "overview"
+  | "intelligence"
   | "connections"
   | "forums"
   | "instagram"
@@ -31,6 +32,7 @@ const ACCENT: Record<Source, string> = {
 };
 const nav: { id: View; label: string; glyph: string }[] = [
   { id: "overview", label: "Command Center", glyph: "~" },
+  { id: "intelligence", label: "Intelligence Hub", glyph: "◎" },
   { id: "connections", label: "Connections", glyph: "+" },
   { id: "forums", label: "Dark Forums", glyph: "#" },
   { id: "instagram", label: "Instagram", glyph: "◈" },
@@ -893,6 +895,108 @@ function ModuleView({ type, url }: { type: Source; url: string }) {
   );
 }
 
+function IntelligenceHub({ apiUrl }: { apiUrl: string }) {
+  const [health, setHealth] = useState<Record<string, string>>({});
+  const [metrics, setMetrics] = useState<Record<string, unknown>>({});
+  const [iocs, setIocs] = useState<Row[]>([]);
+  const [artifacts, setArtifacts] = useState<Row[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const base = tidy(apiUrl);
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const [sourceHealth, layer2, iocResponse, artifactResponse] = await Promise.all([
+        json(`${base}/api/public/health`),
+        json(`${base}/api/layer2/metrics`),
+        json(`${base}/api/intelligence/iocs?limit=12`),
+        json(`${base}/api/artifacts`),
+      ]);
+      setHealth(sourceHealth);
+      setMetrics(layer2);
+      setIocs(iocResponse.items || []);
+      setArtifacts(artifactResponse.items || []);
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Intelligence API is not reachable");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => clearInterval(timer);
+  }, [base]);
+  const accepted = Number(metrics.accepted || 0);
+  const rejected = Number(metrics.rejected || 0);
+  const processed = Number(metrics.processed || 0);
+  const online = Object.values(health).filter((value) => value === "ok").length;
+  const iocTypes = iocs.reduce<Record<string, number>>((all, item) => {
+    const key = String(item.ioc_type || "unknown");
+    all[key] = (all[key] || 0) + 1;
+    return all;
+  }, {});
+  return (
+    <div className="intelligence-page">
+      <div className={`demo-banner ${error ? "" : "connected-banner"}`}>
+        <b>{error ? "INTELLIGENCE API OFFLINE" : "INTELLIGENCE FABRIC ONLINE"}</b>
+        <span>{error || "Live CTI health, enrichment, export, and evidence telemetry."}</span>
+        <button onClick={refresh}>{loading ? "SYNCING" : "REFRESH"}</button>
+      </div>
+      <header className="module-head">
+        <div>
+          <span className="eyebrow">REDTRACES AI / ANALYST WORKBENCH</span>
+          <h1>INTELLIGENCE HUB</h1>
+          <p>Operational visibility across collection, filtering, indicators, and export-ready evidence.</p>
+        </div>
+        <div className="radar intelligence-radar"><i /><i /><i /><b>{online}</b><span>SOURCES<br />HEALTHY</span></div>
+      </header>
+      <section className="intelligence-kpis">
+        {[
+          ["SOURCES ONLINE", online, "Collector gateway health"],
+          ["MESSAGES PROCESSED", processed, "Layer 2 pipeline"],
+          ["SIGNALS ACCEPTED", accepted, "After noise filtering"],
+          ["SIGNALS REJECTED", rejected, "Duplicates and low signal"],
+        ].map(([label, value, note]) => (
+          <article className="glass intelligence-kpi" key={String(label)}>
+            <span>{label}</span><strong>{Number(value).toLocaleString()}</strong><small>{note}</small><Sparkline color="#ff2f4d" />
+          </article>
+        ))}
+      </section>
+      <section className="intelligence-grid">
+        <article className="glass intelligence-panel">
+          <div className="panel-title"><div><span>COLLECTOR STATUS</span><b>Live source gateway</b></div></div>
+          <div className="source-health-list">
+            {Object.entries(health).map(([source, state]) => <div key={source}><i className={state === "ok" ? "online-dot" : "offline-dot"} /><b>{source.toUpperCase()}</b><span>{state === "ok" ? "ONLINE" : "UNAVAILABLE"}</span></div>)}
+            {!Object.keys(health).length && <div className="empty-inline">No source status received yet.</div>}
+          </div>
+        </article>
+        <article className="glass intelligence-panel">
+          <div className="panel-title"><div><span>IOC DISTRIBUTION</span><b>STIX intelligence store</b></div></div>
+          <div className="ioc-bars">
+            {Object.entries(iocTypes).map(([type, count]) => <div key={type}><span>{type.toUpperCase()}</span><i><b style={{ width: `${Math.max(8, (count / Math.max(iocs.length, 1)) * 100)}%` }} /></i><strong>{count}</strong></div>)}
+            {!iocs.length && <div className="empty-inline">IOCs appear here after collected messages are exported to STIX.</div>}
+          </div>
+        </article>
+      </section>
+      <section className="intelligence-grid intelligence-grid-wide">
+        <article className="glass intelligence-panel">
+          <div className="panel-title"><div><span>RECENT INDICATORS</span><b>Evidence-ready observables</b></div></div>
+          {iocs.length ? <div className="ioc-table">{iocs.map((ioc) => <div key={String(ioc.stix_id || ioc.ioc_value)}><span>{String(ioc.ioc_type || "indicator").toUpperCase()}</span><code>{String(ioc.ioc_value || "")}</code><b>{Number(ioc.sighting_count || 0)} sightings</b></div>)}</div> : <div className="empty-inline large">No exported indicators yet. Start authorized collection, then generate and ingest a STIX bundle.</div>}
+        </article>
+        <article className="glass intelligence-panel">
+          <div className="panel-title"><div><span>RESPONSE ARTIFACTS</span><b>STIX, Sigma, and YARA output</b></div></div>
+          {artifacts.length ? <div className="ioc-table">{artifacts.map((artifact) => <div key={String(artifact.name)}><span>{String(artifact.artifact_type || "artifact").toUpperCase()}</span><code>{String(artifact.name)}</code><b>{Math.ceil(Number(artifact.size_bytes || 0) / 1024)} KB</b></div>)}</div> : <div className="empty-inline large">No generated artifacts yet. The export pipeline is ready when intelligence records are available.</div>}
+        </article>
+      </section>
+      <section className="glass pipeline-strip">
+        {["Collection", "Layer 2 filtering", "IOC extraction", "STIX store", "Sigma / YARA", "SIEM handoff"].map((stage, index) => <div key={stage}><b>{String(index + 1).padStart(2, "0")}</b><span>{stage}</span></div>)}
+      </section>
+    </div>
+  );
+}
+
 function Connections({
   urls,
   setUrls,
@@ -1103,6 +1207,8 @@ export default function Home() {
         <div className="content">
           {view === "overview" ? (
             <Overview setView={setView} urls={urls} />
+          ) : view === "intelligence" ? (
+            <IntelligenceHub apiUrl={urls.telegram} />
           ) : view === "connections" ? (
             <Connections urls={urls} setUrls={setUrls} />
           ) : (

@@ -20,7 +20,8 @@ x-api: &api
 services:
   dashboard:
     build: .
-    ports: ["127.0.0.1:3000:3000"]
+    # Windows reserves 3000–3294 on this device. Use the next free local port.
+    ports: ["127.0.0.1:3500:3000"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -122,7 +123,7 @@ services:
     environment: &redtraces-core-environment
       DATABASE_URL: postgresql+asyncpg://redtraces:${REDTRACES_DB_PASSWORD:-redtraces-local}@redtraces-postgres:5432/redtracesai
       REDIS_URL: redis://redtraces-redis:6379/0
-      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      FRONTEND_ORIGIN: http://localhost:3500,http://127.0.0.1:3500
       OUTPUT_DIRECTORY: /output
       TELEGRAM_LEGACY_API_URL: http://telegram:8000
     ports: ["127.0.0.1:8200:8000"]
