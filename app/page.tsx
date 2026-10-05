@@ -1121,12 +1121,21 @@ function Connections({
 export default function Home() {
   const [view, setView] = useState<View>("overview");
   const [urls, setUrls] = useState<URLs>(defaults);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   useEffect(() => {
     try {
       const s = localStorage.getItem("redtraces-ai-collector-urls") ?? localStorage.getItem("hexsentry-collector-urls");
       if (s) setUrls({ ...defaults, ...JSON.parse(s) });
     } catch {}
   }, []);
+  useEffect(() => {
+    const saved = localStorage.getItem("redtraces-ai-theme");
+    if (saved === "light" || saved === "dark") setTheme(saved);
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("redtraces-ai-theme", theme);
+  }, [theme]);
   return (
     <main>
       <div className="noise" />
@@ -1199,6 +1208,15 @@ export default function Home() {
             {nav.find((n) => n.id === view)?.label.toUpperCase()}
           </div>
           <div>
+            <button
+              className="theme-toggle"
+              onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              <span>{theme === "dark" ? "☀" : "◐"}</span>
+              {theme === "dark" ? "LIGHT" : "DARK"}
+            </button>
             <span className="clock">
               SECURE OPERATIONS <b>PAKISTAN</b>
             </span>
