@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import redis.asyncio as redis
@@ -23,6 +23,7 @@ from sqlalchemy import func, or_, select
 
 from common.db import AsyncSessionFactory, engine, init_db
 from common.models import CollectedMessage
+from common.relevance_ai import classify_relevance, model_status
 
 
 OUTPUT_DIRECTORY = Path(os.getenv("OUTPUT_DIRECTORY", "/output"))
@@ -288,6 +289,8 @@ async def layer2_metrics() -> dict[str, Any]:
         "languages": {},
         "detectors": {},
         "reasons": {},
+        "ai": {"relevant": 0, "low_relevance": 0},
+        "relevance_model": model_status(),
     }
     if not url:
         return empty
@@ -308,9 +311,27 @@ async def layer2_metrics() -> dict[str, Any]:
             result["detectors"][key.removeprefix("detector:")] = count
         elif key.startswith("reason:"):
             result["reasons"][key.removeprefix("reason:")] = count
+        elif key.startswith("ai:"):
+            result["ai"][key.removeprefix("ai:")] = count
         elif key in {"processed", "accepted", "rejected"}:
             result[key] = count
     return result
+
+
+@app.get("/api/ai/status")
+async def ai_status() -> dict[str, Any]:
+    """Describe the local CTI relevance model and its measured limits."""
+    return model_status()
+
+
+@app.post("/api/ai/classify")
+async def ai_classify(payload: dict[str, str] = Body(...)) -> dict[str, Any]:
+    """Run one local English relevance triage prediction; no text is stored."""
+    text = payload.get("text", "")
+    if len(text) > 20_000:
+        raise HTTPException(status_code=413, detail="Text exceeds the 20,000 character limit")
+    language = payload.get("language", "en").lower()
+    return classify_relevance(text, language)
 
 
 def _sqlite_items(query: str, parameters: tuple[Any, ...] = ()) -> list[dict[str, Any]]:

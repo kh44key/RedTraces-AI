@@ -87,6 +87,19 @@ type Layer2Metrics = {
   languages: Record<string, number>;
   detectors: Record<string, number>;
   reasons: Record<string, number>;
+  ai: { relevant: number; low_relevance: number };
+  relevance_model: {
+    enabled: boolean;
+    available: boolean;
+    auto_filter: boolean;
+    scope: string;
+    evaluation_domain: string;
+    test_accuracy: number;
+    test_relevant_precision: number;
+    test_relevant_recall: number;
+    test_macro_f1: number;
+    test_rows: number;
+  };
 };
 
 type IOC = { type: string; value: string };
@@ -268,6 +281,10 @@ function MessageRow({ message }: { message: Message }) {
       ? `${message.raw_text.slice(0, 230).trim()}…`
       : message.raw_text;
   const platformStyle = PLATFORM_STYLES[message.platform];
+  const noiseMetadata = message.metadata.noise && typeof message.metadata.noise === "object"
+    ? message.metadata.noise as Record<string, unknown>
+    : {};
+  const aiLabel = noiseMetadata.relevance_label;
 
   return (
     <motion.article
@@ -321,6 +338,11 @@ function MessageRow({ message }: { message: Message }) {
               <span className="inline-flex items-center gap-1 rounded-md bg-[#fff0f0] px-2 py-1 text-[9px] font-semibold text-[#b42332]">
                 <ShieldCheck size={10} />
                 {iocs.length} fetched IOC{iocs.length === 1 ? "" : "s"}
+              </span>
+            )}
+            {(aiLabel === "relevant" || aiLabel === "low_relevance") && (
+              <span className={`rounded-md px-2 py-1 text-[9px] font-semibold ${aiLabel === "relevant" ? "bg-[#ecfdf3] text-[#167449]" : "bg-[#f4f4f5] text-[#71717a]"}`}>
+                AI triage: {aiLabel === "relevant" ? "relevant" : "review / low relevance"}
               </span>
             )}
           </div>
@@ -902,8 +924,14 @@ export default function App() {
                   Redis 24h cache duplicates: {layer2.data?.reasons.duplicate_cache ?? 0}
                 </span>
                 <span className="rounded-md border border-[#efdfe1] bg-[#fffafa] px-2 py-1 text-[#705257]">
-                  Spam model: test-only until CTI-labelled training data is approved
+                  AI triage: {layer2.data?.relevance_model?.available ? "English pilot active · review aid" : "model unavailable"}
                 </span>
+              </div>
+              <div className="mt-3 rounded-xl border border-[#efdfe1] bg-[#fffafa] p-3 text-[9px] leading-5 text-[#705257]">
+                <p className="font-semibold text-[#231113]">English CTI relevance pilot · {layer2.data?.relevance_model?.auto_filter ? "automatic filtering enabled" : "advisory only; no automatic AI rejection"}</p>
+                <p className="mt-1">Held-out report-sentence test ({layer2.data?.relevance_model?.test_rows ?? 0} rows): accuracy {((layer2.data?.relevance_model?.test_accuracy ?? 0) * 100).toFixed(1)}%, relevant precision {((layer2.data?.relevance_model?.test_relevant_precision ?? 0) * 100).toFixed(1)}%, relevant recall {((layer2.data?.relevance_model?.test_relevant_recall ?? 0) * 100).toFixed(1)}%, macro-F1 {((layer2.data?.relevance_model?.test_macro_f1 ?? 0) * 100).toFixed(1)}%.</p>
+                <p>Scope: {layer2.data?.relevance_model?.evaluation_domain ?? "metrics unavailable"}. These are not Telegram/forum accuracy claims.</p>
+                <p>Live model decisions recorded: {layer2.data?.ai?.relevant ?? 0} relevant · {layer2.data?.ai?.low_relevance ?? 0} low-relevance. English only; other languages are not scored.</p>
               </div>
             </section>
 

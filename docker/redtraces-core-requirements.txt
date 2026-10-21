@@ -3,6 +3,9 @@
 # optional collectors and offline STIX/Sigma/YARA tooling.
 asyncpg>=0.29,<1
 fastapi>=0.115,<1
+joblib>=1.4,<2
+scikit-learn>=1.5,<2
+scipy>=1.11,<2
 PySocks>=1.7,<2
 python-dotenv>=1.0,<2
 redis>=5.0,<7

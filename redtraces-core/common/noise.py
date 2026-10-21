@@ -36,6 +36,7 @@ from common.cti import env_flag
 from common.db import AsyncSessionFactory
 from common.ioc import extract_iocs
 from common.models import CollectedMessage
+from common.relevance_ai import classify_relevance
 
 if DetectorFactory is not None:
     DetectorFactory.seed = 0
@@ -71,6 +72,9 @@ class NoiseAnalysis:
     language_detector: str = "heuristic_langdetect"
     language_confidence: float | None = None
     spam_probability: float | None = None
+    relevance_label: str | None = None
+    relevance_margin: float | None = None
+    relevance_model: str | None = None
 
     def metadata(self) -> dict[str, object]:
         return asdict(self)
@@ -220,6 +224,14 @@ def analyze_noise(
         if probability is not None and probability >= threshold:
             reason = "spam_classifier"
 
+    relevance = classify_relevance(normalized, language)
+    if (
+        reason is None
+        and relevance["label"] == "low_relevance"
+        and env_flag("CTI_RELEVANCE_FILTER_ENABLED", False)
+    ):
+        reason = "ai_low_relevance"
+
     return NoiseAnalysis(
         reason is None,
         reason,
@@ -228,6 +240,9 @@ def analyze_noise(
         detector,
         language_confidence,
         probability,
+        relevance.get("label"),
+        relevance.get("margin"),
+        relevance.get("model"),
     )
 
 
@@ -287,6 +302,8 @@ async def _record_layer2_result(analysis: NoiseAnalysis) -> None:
     }
     if analysis.reason:
         fields[f"reason:{analysis.reason}"] = 1
+    if analysis.relevance_label in {"relevant", "low_relevance"}:
+        fields[f"ai:{analysis.relevance_label}"] = 1
     try:
         await client.hincrby("redtraces:layer2:metrics", "processed", 1)
         for field, amount in fields.items():
